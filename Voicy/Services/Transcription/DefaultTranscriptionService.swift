@@ -29,6 +29,7 @@ final class DefaultTranscriptionService: TranscriptionService {
         ]
 
         audioRecorder = try AVAudioRecorder(url: url, settings: settings)
+        audioRecorder?.isMeteringEnabled = true
         audioRecorder?.record()
         recordingURL = url
         recordingStartDate = Date()
@@ -56,6 +57,14 @@ final class DefaultTranscriptionService: TranscriptionService {
 
         return TranscriptionResult(text: text, duration: duration)
     }
+
+    func currentAudioLevel() -> Float {
+        guard let recorder = audioRecorder, recorder.isRecording else { return 0 }
+        recorder.updateMeters()
+        let db = recorder.averagePower(forChannel: 0)
+        let normalized = (db + 60) / 60
+        return max(0, min(1, normalized))
+    }
 }
 
 enum TranscriptionError: LocalizedError {
@@ -69,5 +78,3 @@ enum TranscriptionError: LocalizedError {
         }
     }
 }
-
-

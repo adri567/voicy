@@ -1,4 +1,6 @@
 import AppKit
+@preconcurrency import ApplicationServices
+import FactoryKit
 import Foundation
 
 @MainActor
@@ -9,9 +11,17 @@ final class AppCoordinator {
     nonisolated(unsafe) private var previousFlags: NSEvent.ModifierFlags = []
     private var overlayController: RecordingOverlayWindowController?
     private var transcriptController: TranscriptPopupWindowController?
+    private let pasteService: any PasteService = Container.shared.pasteService()
 
     func setup() {
         guard overlayController == nil else { return }
+        let trusted = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary)
+        print("[Voicy] App path: \(Bundle.main.bundlePath)")
+        print("[Voicy] AX trusted: \(trusted)")
+        if !trusted {
+            let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility")!
+            NSWorkspace.shared.open(url)
+        }
         overlayController = RecordingOverlayWindowController(viewModel: viewModel)
         transcriptController = TranscriptPopupWindowController(viewModel: viewModel)
         overlayController?.show()
@@ -32,7 +42,7 @@ final class AppCoordinator {
             }
         }
     }
-
+    
     private func handleFnPress() async {
         guard viewModel.state == .idle else { return }
         transcriptController?.hide()
@@ -44,8 +54,11 @@ final class AppCoordinator {
         guard viewModel.state == .recording else { return }
         await viewModel.toggleRecording()
         if !viewModel.transcript.isEmpty {
-            let barFrame = overlayController?.window?.frame ?? .zero
-            transcriptController?.show(above: barFrame)
+            pasteService.paste(viewModel.transcript)
+            if viewModel.showTranscript {
+                let barFrame = overlayController?.window?.frame ?? .zero
+                transcriptController?.show(above: barFrame)
+            }
         }
     }
 

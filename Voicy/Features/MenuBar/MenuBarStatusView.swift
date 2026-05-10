@@ -23,6 +23,21 @@ struct MenuBarStatusView: View {
 
             Divider()
 
+            Button {
+                viewModel.toggleShowTranscript()
+            } label: {
+                Label(
+                    viewModel.showTranscript ? "Transkript ausblenden" : "Transkript anzeigen",
+                    systemImage: viewModel.showTranscript ? "text.bubble.fill" : "text.bubble"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Divider()
+
             Button("Beenden") {
                 NSApp.terminate(nil)
             }

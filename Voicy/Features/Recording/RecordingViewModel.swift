@@ -17,7 +17,10 @@ final class RecordingViewModel {
 
     private(set) var state: RecordingState = .loadingModel
     private(set) var transcript: String = ""
-    private(set) var errorMessage: String?
+    private(set) var audioLevel: Float = 0
+    var showTranscript: Bool = UserDefaults.standard.bool(forKey: "dev.showTranscript")
+
+    @ObservationIgnored private var levelTask: Task<Void, Never>?
 
     var isOverlayVisible: Bool {
         switch state {
@@ -42,7 +45,6 @@ final class RecordingViewModel {
             try await service.loadModel()
             state = .idle
         } catch {
-            errorMessage = error.localizedDescription
             state = .idle
         }
     }
@@ -60,32 +62,41 @@ final class RecordingViewModel {
         }
     }
 
+    func toggleShowTranscript() {
+        showTranscript.toggle()
+        UserDefaults.standard.set(showTranscript, forKey: "dev.showTranscript")
+    }
+
     func clearTranscript() {
         transcript = ""
-        errorMessage = nil
     }
 
     private func startRecording() async {
         do {
             try await service.startRecording()
             state = .recording
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+            levelTask = Task { @MainActor [weak self] in
+                while !Task.isCancelled {
+                    guard let self else { return }
+                    let raw = self.service.currentAudioLevel()
+                    self.audioLevel = self.audioLevel * 0.7 + raw * 0.3
+                    try? await Task.sleep(for: .milliseconds(60))
+                }
+            }
+        } catch {}
     }
 
     private func stopAndTranscribe() async {
+        levelTask?.cancel()
+        levelTask = nil
+        audioLevel = 0
         state = .transcribing
         do {
             let result = try await service.stopAndTranscribe()
             transcript = result.text
             state = .idle
         } catch {
-            errorMessage = error.localizedDescription
             state = .idle
         }
     }
 }
-
-

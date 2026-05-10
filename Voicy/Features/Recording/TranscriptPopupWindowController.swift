@@ -24,7 +24,8 @@ final class TranscriptPopupWindowController: NSWindowController {
     required init?(coder: NSCoder) { nil }
 
     func show(above barFrame: NSRect) {
-        guard let window, let screen = NSScreen.main else { return }
+        guard let window else { return }
+        let screen = NSScreen.screens.first { $0.frame.intersects(barFrame) } ?? NSScreen.main ?? NSScreen.screens[0]
         let hc = NSHostingController(rootView: TranscriptPopupView(viewModel: viewModel))
         window.contentViewController = hc
         hc.view.layoutSubtreeIfNeeded()

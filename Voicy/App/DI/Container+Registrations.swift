@@ -5,4 +5,9 @@ extension Container {
         Factory(self) { DefaultTranscriptionService() }
             .singleton
     }
+
+    var pasteService: Factory<any PasteService> {
+        Factory(self) { DefaultPasteService() }
+            .singleton
+    }
 }
