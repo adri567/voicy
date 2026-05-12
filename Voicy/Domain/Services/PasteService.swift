@@ -1,3 +1,3 @@
-protocol PasteService {
+protocol PasteService: Sendable {
     func paste(_ text: String)
 }

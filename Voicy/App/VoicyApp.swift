@@ -3,7 +3,7 @@ import FactoryKit
 import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    nonisolated(unsafe) let coordinator: AppCoordinator
+    let coordinator: AppCoordinator
 
     override init() {
         coordinator = MainActor.assumeIsolated { AppCoordinator() }
@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MainActor.assumeIsolated { self.coordinator.setup() }
         Task { @MainActor in
             await self.coordinator.viewModel.onAppear()
-            print("[Voicy] App gestartet — Hotkey: Ctrl+Option")
+            print("[Voicy] App gestartet — Hotkey: Fn")
         }
     }
 }

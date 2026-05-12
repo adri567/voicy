@@ -1,8 +1,8 @@
 import Foundation
 
 protocol TranscriptionService: Sendable {
-    func loadModel() async throws
-    func startRecording() async throws
-    func stopAndTranscribe() async throws -> TranscriptionResult
-    func currentAudioLevel() -> Float
+    nonisolated func loadModel() async throws
+    nonisolated func startRecording() async throws
+    nonisolated func stopAndTranscribe() async throws -> TranscriptionResult
+    nonisolated func currentAudioLevel() -> Float
 }

@@ -35,7 +35,9 @@ final class RecordingOverlayWindowController: NSWindowController, NSWindowDelega
         positionAtBottomCenter()
         window?.orderFront(nil)
         screenTracker = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
-            self?.trackScreenIfNeeded()
+            MainActor.assumeIsolated {
+                self?.trackScreenIfNeeded()
+            }
         }
     }
 

@@ -4,6 +4,8 @@ import SwiftUI
 struct MenuBarStatusView: View {
 
     var viewModel: RecordingViewModel
+    @State private var initialEngine: TranscriptionEngine = TranscriptionEngine.current
+    @State private var selectedEngine: TranscriptionEngine = TranscriptionEngine.current
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -13,6 +15,18 @@ struct MenuBarStatusView: View {
 
                 statusIndicator
 
+                if let progress = viewModel.correctionModelProgress {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(progress > 0
+                             ? String(format: "KI-Modell: %.0f %%", progress * 100)
+                             : "KI-Modell wird geladen…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ProgressView(value: progress > 0 ? progress : nil)
+                            .tint(.blue)
+                    }
+                }
+
                 if viewModel.state != .loadingModel {
                     Text("Fn gedrückt halten")
                         .font(.caption)
@@ -20,6 +34,21 @@ struct MenuBarStatusView: View {
                 }
             }
             .padding(16)
+
+            Divider()
+
+            Button {
+                viewModel.toggleCorrection()
+            } label: {
+                Label(
+                    viewModel.correctionEnabled ? "Korrektur: An" : "Korrektur: Aus",
+                    systemImage: viewModel.correctionEnabled ? "checkmark.circle.fill" : "circle"
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Divider()
 
@@ -38,6 +67,34 @@ struct MenuBarStatusView: View {
 
             Divider()
 
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Transkriptions-Engine")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+
+                Picker("", selection: $selectedEngine) {
+                    ForEach(TranscriptionEngine.allCases, id: \.self) { engine in
+                        Text(engine.displayName).tag(engine)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+                .padding(.horizontal, 16)
+                .onChange(of: selectedEngine) { _, new in
+                    TranscriptionEngine.current = new
+                }
+
+                if selectedEngine != initialEngine {
+                    Text("Neustart erforderlich")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 4)
+                }
+            }
+
+            Divider()
             Button("Beenden") {
                 NSApp.terminate(nil)
             }
@@ -67,6 +124,8 @@ struct MenuBarStatusView: View {
             statusRow(color: .red, label: "Aufnahme läuft…")
         case .transcribing:
             statusRow(color: .orange, label: "Transkribiere…")
+        case .correcting:
+            statusRow(color: .orange, label: "Korrigiere…")
         }
     }
 

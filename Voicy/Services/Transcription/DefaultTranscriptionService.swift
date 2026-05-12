@@ -1,80 +1,67 @@
-import AVFoundation
 import Foundation
 import WhisperKit
 
 final class DefaultTranscriptionService: TranscriptionService {
 
     nonisolated(unsafe) private var whisperKit: WhisperKit?
-    nonisolated(unsafe) private var audioRecorder: AVAudioRecorder?
-    nonisolated(unsafe) private var recordingURL: URL?
-    nonisolated(unsafe) private var recordingStartDate: Date?
+    private let recorder = AudioRecorder()
 
     nonisolated init() {}
 
-    func loadModel() async throws {
+    nonisolated func loadModel() async throws {
         guard whisperKit == nil else { return }
-        whisperKit = try await WhisperKit(model: "openai_whisper-small")
+        let model = await Self.modelName
+        print("[WhisperKit] Loading model: \(model)")
+        whisperKit = try await WhisperKit(model: model)
+        print("[WhisperKit] Model loaded successfully")
     }
 
-    func startRecording() async throws {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("m4a")
+    // WhisperKit 1.0.0 removed TextDecoderContextPrefill, making all _turbo variants
+    // incompatible. Use small for now — fast enough with LLM cleanup in the pipeline.
+    // Revisit when WhisperKit adds a new turbo path without TextDecoderContextPrefill.
+    private static let modelName = "openai_whisper-small"
 
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
-            AVSampleRateKey: 16000,
-            AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
-        ]
-
-        audioRecorder = try AVAudioRecorder(url: url, settings: settings)
-        audioRecorder?.isMeteringEnabled = true
-        audioRecorder?.record()
-        recordingURL = url
-        recordingStartDate = Date()
+    nonisolated func startRecording() async throws {
+        guard whisperKit != nil else { throw TranscriptionError.modelNotLoaded }
+        try recorder.start()
     }
 
-    func stopAndTranscribe() async throws -> TranscriptionResult {
-        guard let recorder = audioRecorder, let url = recordingURL else {
-            throw TranscriptionError.noActiveRecording
+    nonisolated func stopAndTranscribe() async throws -> TranscriptionResult {
+        guard let kit = whisperKit else { throw TranscriptionError.noActiveRecording }
+
+        let (samples, duration) = recorder.stop()
+
+        print("[WhisperKit] Final transcription: \(samples.count) samples (\(String(format: "%.1f", Double(samples.count) / 16000.0))s)")
+        guard !samples.isEmpty else {
+            throw TranscriptionError.noAudioCaptured
         }
 
-        let duration = recordingStartDate.map { Date().timeIntervalSince($0) } ?? 0
-        recorder.stop()
-        audioRecorder = nil
-
-        guard let kit = whisperKit else {
-            throw TranscriptionError.modelNotLoaded
-        }
-
-        let results = try await kit.transcribe(audioPath: url.path(), decodeOptions: DecodingOptions(language: "de"))
+        let results = try await kit.transcribe(
+            audioArray: samples,
+            decodeOptions: DecodingOptions(language: "de")
+        )
         let text = results.compactMap(\.text).joined(separator: " ").trimmingCharacters(in: .whitespaces)
-
-        try? FileManager.default.removeItem(at: url)
-        recordingURL = nil
-        recordingStartDate = nil
 
         return TranscriptionResult(text: text, duration: duration)
     }
 
-    func currentAudioLevel() -> Float {
-        guard let recorder = audioRecorder, recorder.isRecording else { return 0 }
-        recorder.updateMeters()
-        let db = recorder.averagePower(forChannel: 0)
-        let normalized = (db + 60) / 60
-        return max(0, min(1, normalized))
+    nonisolated func currentAudioLevel() -> Float {
+        recorder.currentLevel()
     }
 }
 
 enum TranscriptionError: LocalizedError {
     case modelNotLoaded
     case noActiveRecording
+    case audioSetupFailed
+    case noAudioCaptured
 
     var errorDescription: String? {
         switch self {
-        case .modelNotLoaded: "Whisper-Modell ist noch nicht geladen."
+        case .modelNotLoaded:    "Whisper-Modell ist noch nicht geladen."
         case .noActiveRecording: "Keine aktive Aufnahme vorhanden."
+        case .audioSetupFailed:  "Audio konnte nicht gelesen werden."
+        case .noAudioCaptured:   "Keine Audio-Samples aufgenommen — Mikrofon-Berechtigung prüfen."
         }
     }
 }

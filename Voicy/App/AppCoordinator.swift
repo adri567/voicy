@@ -16,8 +16,6 @@ final class AppCoordinator {
     func setup() {
         guard overlayController == nil else { return }
         let trusted = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary)
-        print("[Voicy] App path: \(Bundle.main.bundlePath)")
-        print("[Voicy] AX trusted: \(trusted)")
         if !trusted {
             let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility")!
             NSWorkspace.shared.open(url)

@@ -3,10 +3,9 @@ import SwiftUI
 
 final class TranscriptPopupWindowController: NSWindowController {
 
-    private let viewModel: RecordingViewModel
+    private let hostingController: NSHostingController<TranscriptPopupView>
 
     init(viewModel: RecordingViewModel) {
-        self.viewModel = viewModel
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 360, height: 200),
             styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView],
@@ -18,7 +17,9 @@ final class TranscriptPopupWindowController: NSWindowController {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        hostingController = NSHostingController(rootView: TranscriptPopupView(viewModel: viewModel))
         super.init(window: panel)
+        panel.contentViewController = hostingController
     }
 
     required init?(coder: NSCoder) { nil }
@@ -26,10 +27,8 @@ final class TranscriptPopupWindowController: NSWindowController {
     func show(above barFrame: NSRect) {
         guard let window else { return }
         let screen = NSScreen.screens.first { $0.frame.intersects(barFrame) } ?? NSScreen.main ?? NSScreen.screens[0]
-        let hc = NSHostingController(rootView: TranscriptPopupView(viewModel: viewModel))
-        window.contentViewController = hc
-        hc.view.layoutSubtreeIfNeeded()
-        let size = hc.view.fittingSize
+        hostingController.view.layoutSubtreeIfNeeded()
+        let size = hostingController.view.fittingSize
         window.setFrame(
             NSRect(
                 x: screen.visibleFrame.midX - 180,

@@ -25,7 +25,7 @@ struct OverlayView: View {
                 .pill()
                 .transition(.scale(0.75, anchor: .bottom).combined(with: .opacity))
 
-        case .transcribing:
+        case .transcribing, .correcting:
             TranscribingDotsView()
                 .frame(width: 46, height: 17)
                 .padding(.horizontal)

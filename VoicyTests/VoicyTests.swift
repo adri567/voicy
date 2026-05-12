@@ -8,6 +8,7 @@ struct RecordingViewModelTests {
 
     init() {
         Container.shared.transcriptionService.register { MockTranscriptionService() }
+        Container.shared.textCorrectionService.register { NoopTextCorrectionService() }
     }
 
     @Test("Startet im loadingModel-State")
@@ -15,7 +16,6 @@ struct RecordingViewModelTests {
         let viewModel = RecordingViewModel()
         #expect(viewModel.state == .loadingModel)
         #expect(viewModel.transcript.isEmpty)
-        #expect(viewModel.errorMessage == nil)
     }
 
     @Test("Nach loadModel ist State idle")
@@ -23,15 +23,13 @@ struct RecordingViewModelTests {
         let viewModel = RecordingViewModel()
         await viewModel.onAppear()
         #expect(viewModel.state == .idle)
-        #expect(viewModel.errorMessage == nil)
     }
 
-    @Test("loadModel setzt errorMessage bei Fehler")
+    @Test("Fehlgeschlagenes loadModel landet trotzdem im idle-State")
     func loadModelFailure() async {
         Container.shared.transcriptionService.register { FailingTranscriptionService() }
         let viewModel = RecordingViewModel()
         await viewModel.onAppear()
-        #expect(viewModel.errorMessage != nil)
         #expect(viewModel.state == .idle)
     }
 
@@ -53,7 +51,7 @@ struct RecordingViewModelTests {
         #expect(viewModel.transcript == MockTranscriptionService.mockText)
     }
 
-    @Test("Fehler beim Transkribieren setzt errorMessage")
+    @Test("Fehler beim Transkribieren landet im idle-State ohne Transcript")
     func transcriptionError() async {
         Container.shared.transcriptionService.register { FailingOnStopTranscriptionService() }
         let viewModel = RecordingViewModel()
@@ -61,36 +59,48 @@ struct RecordingViewModelTests {
         await viewModel.toggleRecording()
         await viewModel.toggleRecording()
         #expect(viewModel.state == .idle)
-        #expect(viewModel.errorMessage != nil)
+        #expect(viewModel.transcript.isEmpty)
     }
 }
 
 // MARK: - Mocks
 
-final class MockTranscriptionService: TranscriptionService, @unchecked Sendable {
+final class MockTranscriptionService: TranscriptionService {
     static let mockText = "Hallo, das ist ein Test."
 
-    func loadModel() async throws {}
-    func startRecording() async throws {}
-    func stopAndTranscribe() async throws -> TranscriptionResult {
+    nonisolated init() {}
+    nonisolated func loadModel() async throws {}
+    nonisolated func startRecording() async throws {}
+    nonisolated func stopAndTranscribe() async throws -> TranscriptionResult {
         TranscriptionResult(text: Self.mockText, duration: 1.5)
     }
+    nonisolated func currentAudioLevel() -> Float { 0 }
 }
 
-final class FailingTranscriptionService: TranscriptionService, @unchecked Sendable {
-    func loadModel() async throws { throw TestError.loadFailed }
-    func startRecording() async throws {}
-    func stopAndTranscribe() async throws -> TranscriptionResult {
+final class FailingTranscriptionService: TranscriptionService {
+    nonisolated init() {}
+    nonisolated func loadModel() async throws { throw TestError.loadFailed }
+    nonisolated func startRecording() async throws {}
+    nonisolated func stopAndTranscribe() async throws -> TranscriptionResult {
         throw TestError.loadFailed
     }
+    nonisolated func currentAudioLevel() -> Float { 0 }
 }
 
-final class FailingOnStopTranscriptionService: TranscriptionService, @unchecked Sendable {
-    func loadModel() async throws {}
-    func startRecording() async throws {}
-    func stopAndTranscribe() async throws -> TranscriptionResult {
+final class FailingOnStopTranscriptionService: TranscriptionService {
+    nonisolated init() {}
+    nonisolated func loadModel() async throws {}
+    nonisolated func startRecording() async throws {}
+    nonisolated func stopAndTranscribe() async throws -> TranscriptionResult {
         throw TestError.transcriptionFailed
     }
+    nonisolated func currentAudioLevel() -> Float { 0 }
+}
+
+final class NoopTextCorrectionService: TextCorrectionService {
+    nonisolated init() {}
+    nonisolated func loadModel(onProgress: (@Sendable (Double) -> Void)?) async throws {}
+    nonisolated func correct(_ text: String) async throws -> String { text }
 }
 
 enum TestError: Error {
