@@ -19,24 +19,23 @@ final class RecordingViewModel {
     @ObservationIgnored
     @Injected(\.textCorrectionService) private var correctionService
 
+    @ObservationIgnored
+    @Injected(\.transcriptionHistoryService) private var historyService
+
+    @ObservationIgnored
+    @Injected(\.languageCycleService) private var languageCycle
+
     private(set) var state: RecordingState = .loadingModel
     private(set) var transcript: String = ""
     private(set) var audioLevel: Float = 0
     private(set) var correctionModelProgress: Double? = nil
     var showTranscript: Bool = UserDefaults.standard.bool(forKey: Preferences.Key.showTranscript)
-    var correctionEnabled: Bool = UserDefaults.standard.bool(forKey: Preferences.Key.correctionEnabled) {
-        didSet { UserDefaults.standard.set(correctionEnabled, forKey: Preferences.Key.correctionEnabled) }
-    }
 
     @ObservationIgnored private var levelTask: Task<Void, Never>?
+    @ObservationIgnored private var pendingTargetApp: TargetAppSnapshot?
 
-    var menuBarIconName: String {
-        switch state {
-        case .loadingModel:              "arrow.down.circle.dotted"
-        case .idle:                      "waveform.and.mic"
-        case .recording:                 "waveform"
-        case .transcribing, .correcting: "ellipsis.bubble"
-        }
+    func captureTargetApp(_ snapshot: TargetAppSnapshot?) {
+        pendingTargetApp = snapshot
     }
 
     func onAppear() async {
@@ -74,11 +73,7 @@ final class RecordingViewModel {
 
     func toggleShowTranscript() {
         showTranscript.toggle()
-        UserDefaults.standard.set(showTranscript, forKey: "dev.showTranscript")
-    }
-
-    func toggleCorrection() {
-        correctionEnabled.toggle()
+        UserDefaults.standard.set(showTranscript, forKey: Preferences.Key.showTranscript)
     }
 
     func clearTranscript() {
@@ -106,18 +101,41 @@ final class RecordingViewModel {
         levelTask?.cancel()
         levelTask = nil
         audioLevel = 0
+        let sourceLanguage = languageCycle.source
+        let targetLanguage = languageCycle.activeTarget
         state = .transcribing
         await Task.yield()
         do {
             let result = try await service.stopAndTranscribe()
-            if correctionEnabled && !result.text.isEmpty {
+            var didCorrect = false
+            var finalText = result.text
+            // LLM only runs when a translation target is active. Step 0 (source
+            // language) returns the raw ASR transcript untouched.
+            if targetLanguage != nil, !result.text.isEmpty {
                 state = .correcting
-                let corrected = (try? await correctionService.correct(result.text)) ?? result.text
-                transcript = corrected
-            } else {
-                transcript = result.text
+                if let corrected = try? await correctionService.correct(
+                    result.text,
+                    sourceLanguage: sourceLanguage,
+                    targetLanguage: targetLanguage
+                ) {
+                    finalText = corrected
+                    didCorrect = true
+                }
             }
+            transcript = finalText
             state = .idle
+            if !finalText.isEmpty {
+                let engine = TranscriptionEngine.current
+                let target = pendingTargetApp
+                pendingTargetApp = nil
+                try? await historyService.save(
+                    text: finalText,
+                    duration: result.duration,
+                    engine: engine,
+                    corrected: didCorrect,
+                    target: target
+                )
+            }
         } catch {
             print("[RecordingViewModel] Transcription failed: \(error)")
             state = .idle

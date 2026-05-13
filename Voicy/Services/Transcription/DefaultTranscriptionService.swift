@@ -10,8 +10,14 @@ final class DefaultTranscriptionService: TranscriptionService {
 
     nonisolated func loadModel() async throws {
         guard whisperKit == nil else { return }
-        let model = await Self.modelName
-        print("[WhisperKit] Loading model: \(model)")
+        // Load-from-cache only. Downloads happen exclusively through
+        // installModel(progress:), triggered from EngineView.
+        guard isModelInstalled() else {
+            print("[WhisperKit] Skipping auto-load — model not on disk")
+            return
+        }
+        let model = Self.modelName
+        print("[WhisperKit] Loading model from cache: \(model)")
         whisperKit = try await WhisperKit(model: model)
         print("[WhisperKit] Model loaded successfully")
     }
@@ -19,7 +25,7 @@ final class DefaultTranscriptionService: TranscriptionService {
     // WhisperKit 1.0.0 removed TextDecoderContextPrefill, making all _turbo variants
     // incompatible. Use small for now — fast enough with LLM cleanup in the pipeline.
     // Revisit when WhisperKit adds a new turbo path without TextDecoderContextPrefill.
-    private static let modelName = "openai_whisper-small"
+    nonisolated private static let modelName = "openai_whisper-small"
 
     nonisolated func startRecording() async throws {
         guard whisperKit != nil else { throw TranscriptionError.modelNotLoaded }
@@ -47,6 +53,33 @@ final class DefaultTranscriptionService: TranscriptionService {
 
     nonisolated func currentAudioLevel() -> Float {
         recorder.currentLevel()
+    }
+
+    // MARK: - Download management
+
+    nonisolated func isModelInstalled() -> Bool {
+        ModelStorage.exists(at: ModelStorage.whisperKitPath(model: Self.modelName))
+    }
+
+    nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
+        if isModelInstalled(), whisperKit != nil {
+            progress(1.0)
+            return
+        }
+        // WhisperKit() downloads via HubApi when the cache is empty, then loads
+        // into RAM. No per-file progress hook in the public init — we report
+        // 0 → 1 around the call.
+        progress(0.05)
+        let model = Self.modelName
+        let kit = try await WhisperKit(model: model)
+        whisperKit = kit
+        progress(1.0)
+    }
+
+    nonisolated func removeModel() async throws {
+        whisperKit = nil
+        try ModelStorage.remove(at: ModelStorage.whisperKitPath(model: Self.modelName))
+        print("[WhisperKit] Model removed from disk")
     }
 }
 

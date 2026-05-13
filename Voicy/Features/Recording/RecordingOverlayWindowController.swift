@@ -6,7 +6,7 @@ final class RecordingOverlayWindowController: NSWindowController, NSWindowDelega
     nonisolated(unsafe) private var lastScreen: NSScreen?
     nonisolated(unsafe) private var screenTracker: Timer?
 
-    init(viewModel: RecordingViewModel) {
+    init(viewModel: RecordingViewModel, cycle: LanguageCycleService) {
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 200, height: 6),
             styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView],
@@ -23,7 +23,9 @@ final class RecordingOverlayWindowController: NSWindowController, NSWindowDelega
 
         panel.delegate = self
 
-        let hostingController = NSHostingController(rootView: OverlayView(viewModel: viewModel))
+        let hostingController = NSHostingController(
+            rootView: OverlayView(viewModel: viewModel, cycle: cycle)
+        )
         panel.contentViewController = hostingController
 
         positionAtBottomCenter()

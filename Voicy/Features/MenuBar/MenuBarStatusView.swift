@@ -4,8 +4,7 @@ import SwiftUI
 struct MenuBarStatusView: View {
 
     var viewModel: RecordingViewModel
-    @State private var initialEngine: TranscriptionEngine = TranscriptionEngine.current
-    @State private var selectedEngine: TranscriptionEngine = TranscriptionEngine.current
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -38,12 +37,10 @@ struct MenuBarStatusView: View {
             Divider()
 
             Button {
-                viewModel.toggleCorrection()
+                NSApp.activate(ignoringOtherApps: true)
+                openWindow(id: MainWindowID.id)
             } label: {
-                Label(
-                    viewModel.correctionEnabled ? "Korrektur: An" : "Korrektur: Aus",
-                    systemImage: viewModel.correctionEnabled ? "checkmark.circle.fill" : "circle"
-                )
+                Label("Voicy öffnen…", systemImage: "macwindow")
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
@@ -52,49 +49,6 @@ struct MenuBarStatusView: View {
 
             Divider()
 
-            Button {
-                viewModel.toggleShowTranscript()
-            } label: {
-                Label(
-                    viewModel.showTranscript ? "Transkript ausblenden" : "Transkript anzeigen",
-                    systemImage: viewModel.showTranscript ? "text.bubble.fill" : "text.bubble"
-                )
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Transkriptions-Engine")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-
-                Picker("", selection: $selectedEngine) {
-                    ForEach(TranscriptionEngine.allCases, id: \.self) { engine in
-                        Text(engine.displayName).tag(engine)
-                    }
-                }
-                .pickerStyle(.radioGroup)
-                .padding(.horizontal, 16)
-                .onChange(of: selectedEngine) { _, new in
-                    TranscriptionEngine.current = new
-                }
-
-                if selectedEngine != initialEngine {
-                    Text("Neustart erforderlich")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 4)
-                }
-            }
-
-            Divider()
             Button("Beenden") {
                 NSApp.terminate(nil)
             }
