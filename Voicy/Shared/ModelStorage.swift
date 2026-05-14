@@ -34,6 +34,23 @@ nonisolated enum ModelStorage {
             .appendingPathComponent("Models", isDirectory: true)
     }
 
+    /// Folder name on disk for a given Parakeet version. Mirrors FluidAudio's
+    /// `Repo.folderName` extraction from the HF repo string.
+    /// Examples:
+    /// - `v3` → "parakeet-tdt-0.6b-v3-coreml"
+    /// - `tdtCtc110m` → "parakeet-tdt-ctc-110m-coreml"
+    static func parakeetPath(version: String) -> URL {
+        let folder: String = {
+            switch version {
+            case "v3":         return "parakeet-tdt-0.6b-v3-coreml"
+            case "v2":         return "parakeet-tdt-0.6b-v2-coreml"
+            case "tdtCtc110m": return "parakeet-tdt-ctc-110m-coreml"
+            default:           return "parakeet-tdt-0.6b-v3-coreml"
+            }
+        }()
+        return fluidAudioModelsRoot().appendingPathComponent(folder, isDirectory: true)
+    }
+
     // MARK: - MLX (HuggingFace hub)
 
     /// e.g. `~/.cache/huggingface/hub/models--mlx-community--gemma-4-e2b-it-4bit/`

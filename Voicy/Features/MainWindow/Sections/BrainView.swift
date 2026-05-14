@@ -2,78 +2,75 @@ import SwiftUI
 
 struct BrainView: View {
 
-    // MOCK: only Gemma 4 E2B is the real, loaded model. All other entries are
-    // visual placeholders so the library design works end-to-end, mirroring
-    // EngineView's pattern with Whisper + Parakeet vs. mock models.
-    // TODO(brain-catalog).
     private let models: [LLMModel] = [
         LLMModel(
             id: "gemma4-e2b",
+            registryKey: "gemma4_e2b_it_4bit",
             name: "Gemma 4 E2B",
             family: "Google · MLX",
             description: "Compact instruction-tuned model running on Apple Silicon. Used for translation today, cleanup and snippets next. Lives entirely on device — no audio leaves your Mac.",
-            size: "~1.5 GB",
+            size: "~1.1 GB",
             context: "8k",
             speed: "Fast",
             quality: 0.80,
             location: .local,
-            state: .active,
-            highlight: "Default · running locally"
+            highlight: "Recommended · running locally"
         ),
         LLMModel(
-            id: "mistral-7b",
-            name: "Mistral 7B Instruct",
-            family: "Mistral · open weights",
-            description: "Lean and very fast. Excellent for short tasks like translation, punctuation fixes, and short rewrites.",
-            size: "4.1 GB",
-            context: "32k",
-            speed: "Real-time",
-            quality: 0.82,
+            id: "gemma4-e4b",
+            registryKey: "gemma4_e4b_it_4bit",
+            name: "Gemma 4 E4B",
+            family: "Google · MLX",
+            description: "The bigger sibling of E2B. Doubles disk and memory, noticeably better at longer reasoning and tone control.",
+            size: "~2.2 GB",
+            context: "8k",
+            speed: "Medium",
+            quality: 0.84,
             location: .local,
-            state: .mockInstalled,
             highlight: nil
         ),
         LLMModel(
-            id: "qwen-25-14b",
-            name: "Qwen 2.5 14B",
+            id: "mistral-7b",
+            registryKey: "mistral7B4bit",
+            name: "Mistral 7B Instruct",
+            family: "Mistral · open weights",
+            description: "Lean and fast for its size. Solid multilingual translator with good European-language support. No reasoning overhead — outputs directly.",
+            size: "~4 GB",
+            context: "32k",
+            speed: "Medium",
+            quality: 0.85,
+            location: .local,
+            highlight: nil
+        ),
+        LLMModel(
+            id: "qwen2-5-7b",
+            registryKey: "qwen2_5_7b",
+            name: "Qwen 2.5 7B",
             family: "Alibaba · open weights",
-            description: "Heavier and more thoughtful. Multilingual translation is its real strength — exceptional for German, Chinese, and Slavic languages.",
-            size: "8.7 GB",
+            description: "Heavier and more thoughtful. 29-language support, exceptional for German, Slavic and Asian translations.",
+            size: "~4 GB",
             context: "128k",
             speed: "Medium",
             quality: 0.91,
             location: .local,
-            state: .mockInstalled,
-            highlight: nil
+            highlight: "Best multilingual premium"
         ),
         LLMModel(
-            id: "phi-35-mini",
-            name: "Phi-3.5 Mini",
-            family: "Microsoft · open weights",
-            description: "A 3.8B model that punches above its weight. Wonderful for quick edits when battery matters and the task is small.",
-            size: "2.3 GB",
+            id: "llama3-1-8b",
+            registryKey: "llama3_1_8B_4bit",
+            name: "Llama 3.1 8B",
+            family: "Meta · open weights",
+            description: "Meta's polished 8B instruction model. Strong general-purpose performer, declared multilingual support.",
+            size: "~4.7 GB",
             context: "128k",
-            speed: "Real-time",
-            quality: 0.78,
+            speed: "Slow",
+            quality: 0.88,
             location: .local,
-            state: .mockAvailable,
-            highlight: nil
-        ),
-        LLMModel(
-            id: "gemma-2-9b",
-            name: "Gemma 2 9B",
-            family: "Google · open weights",
-            description: "Google's open model. Tuned for instruction-following — great when you want it to do exactly what you asked, nothing more.",
-            size: "5.4 GB",
-            context: "8k",
-            speed: "Fast",
-            quality: 0.84,
-            location: .local,
-            state: .mockAvailable,
             highlight: nil
         ),
         LLMModel(
             id: "claude-haiku-45",
+            registryKey: nil,
             name: "Claude Haiku 4.5",
             family: "Anthropic · API",
             description: "Anthropic's small workhorse. Astonishing speed and quality for translation and rewriting. Coming soon — opt-in only.",
@@ -82,11 +79,11 @@ struct BrainView: View {
             speed: "Real-time",
             quality: 0.95,
             location: .cloud,
-            state: .mockSoon,
             highlight: nil
         ),
         LLMModel(
             id: "gpt-41-mini",
+            registryKey: nil,
             name: "GPT-4.1 Mini",
             family: "OpenAI · API",
             description: "Quick, capable, ubiquitous. Best when you want the most polished tone, especially for English prose.",
@@ -95,11 +92,11 @@ struct BrainView: View {
             speed: "Real-time",
             quality: 0.94,
             location: .cloud,
-            state: .mockSoon,
             highlight: nil
         ),
         LLMModel(
             id: "gemini-25-flash",
+            registryKey: nil,
             name: "Gemini 2.5 Flash",
             family: "Google · API",
             description: "Strong multilingual translation at a low cost. Useful if your three target languages span very different families.",
@@ -108,23 +105,31 @@ struct BrainView: View {
             speed: "Real-time",
             quality: 0.92,
             location: .cloud,
-            state: .mockSoon,
             highlight: nil
         ),
     ]
 
     @State private var filter: LLMFilter = .all
     @State private var viewModel = BrainViewModel()
+    @State private var pendingSetDefault: LLMModel?
     @State private var pendingRemove: LLMModel?
 
-    private static let realModelID = "gemma4-e2b"
+    private var localRegistryKeys: [String] {
+        models.compactMap { $0.location == .local ? $0.registryKey : nil }
+    }
 
     private var activeModel: LLMModel {
-        models.first { $0.state == .active } ?? models[0]
+        let active = MLXTextCorrectionService.activeRegistryKey
+        return models.first { $0.registryKey == active } ?? models[0]
     }
 
     private var visibleModels: [LLMModel] {
-        models.filter { filter.matches($0) }
+        models.filter { filter.matches($0, status: status(of: $0)) }
+    }
+
+    private func status(of model: LLMModel) -> BrainViewModel.Status? {
+        guard let key = model.registryKey else { return nil }
+        return viewModel.statuses[key]
     }
 
     var body: some View {
@@ -143,7 +148,24 @@ struct BrainView: View {
                     .padding(.bottom, 56)
             }
         }
-        .onAppear { viewModel.refresh() }
+        .onAppear { viewModel.refresh(registryKeys: localRegistryKeys) }
+        .alert(
+            "Modell aktivieren?",
+            isPresented: Binding(
+                get: { pendingSetDefault != nil },
+                set: { if !$0 { pendingSetDefault = nil } }
+            ),
+            presenting: pendingSetDefault
+        ) { model in
+            Button("Abbrechen", role: .cancel) { pendingSetDefault = nil }
+            Button("Jetzt neu starten") {
+                let key = model.registryKey
+                pendingSetDefault = nil
+                if let key { viewModel.setAsDefault(registryKey: key) }
+            }
+        } message: { model in
+            Text("Voicy wechselt zu \(model.name) und startet neu. Eine laufende Aufnahme geht dabei verloren.")
+        }
         .alert(
             "Modell löschen?",
             isPresented: Binding(
@@ -151,16 +173,15 @@ struct BrainView: View {
                 set: { if !$0 { pendingRemove = nil } }
             ),
             presenting: pendingRemove
-        ) { _ in
+        ) { model in
             Button("Abbrechen", role: .cancel) { pendingRemove = nil }
             Button("Löschen", role: .destructive) {
-                let target = pendingRemove
+                let key = model.registryKey
                 pendingRemove = nil
-                guard target != nil else { return }
-                Task { await viewModel.remove() }
+                if let key { Task { await viewModel.remove(registryKey: key) } }
             }
         } message: { model in
-            if viewModel.status == .active {
+            if let key = model.registryKey, viewModel.statuses[key] == .active {
                 Text("\(model.name) ist aktuell aktiv. Nach dem Löschen kannst du nicht mehr übersetzen, bis du es neu installierst.")
             } else {
                 Text("\(model.name) löschen? Du kannst es jederzeit neu installieren.")
@@ -197,23 +218,24 @@ struct BrainView: View {
     }
 
     private var activeCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let current = activeModel
+        return VStack(alignment: .leading, spacing: 0) {
             MetaLabel(text: "Default model", color: DS.Palette.paper.opacity(0.6))
                 .padding(.bottom, 14)
 
-            Text("Gemma \(Text("4").italic()) E2B")
+            Text("\(current.nameLeadingPart)\(Text(current.nameTrailingPart).italic())")
                 .font(DS.Font.serif(32))
                 .foregroundStyle(DS.Palette.paper)
                 .padding(.bottom, 6)
 
-            Text("Google · ~1.5 GB · loaded into RAM")
+            Text("\(current.family) · \(current.size) · loaded into RAM")
                 .font(DS.Font.mono(11))
                 .foregroundStyle(DS.Palette.paper.opacity(0.7))
                 .padding(.bottom, 22)
 
             HStack(spacing: 18) {
-                statBlock(label: "Quality", value: "80", suffix: "%")
-                statBlock(label: "Latency", value: "~500", suffix: "ms")
+                statBlock(label: "Quality", value: "\(Int(current.quality * 100))", suffix: "%")
+                statBlock(label: "Latency", value: current.latencyNumber, suffix: "ms")
             }
             .padding(.bottom, 22)
 
@@ -280,13 +302,15 @@ struct BrainView: View {
                         model: model,
                         index: idx + 1,
                         first: idx == 0,
-                        liveStatus: model.id == Self.realModelID ? viewModel.status : nil,
+                        status: status(of: model),
                         onInstall: {
-                            guard model.id == Self.realModelID else { return }
-                            Task { await viewModel.install() }
+                            guard let key = model.registryKey else { return }
+                            Task { await viewModel.install(registryKey: key) }
+                        },
+                        onSetDefault: {
+                            pendingSetDefault = model
                         },
                         onRemove: {
-                            guard model.id == Self.realModelID else { return }
                             pendingRemove = model
                         }
                     )
@@ -329,12 +353,14 @@ private enum LLMFilter: String, CaseIterable, Identifiable {
         }
     }
 
-    func matches(_ model: LLMModel) -> Bool {
+    func matches(_ model: LLMModel, status: BrainViewModel.Status?) -> Bool {
         switch self {
         case .all:       return true
         case .local:     return model.location == .local
         case .cloud:     return model.location == .cloud
-        case .installed: return model.state == .active || model.state == .mockInstalled
+        case .installed:
+            guard let status else { return false }
+            return status == .active || status == .installed
         }
     }
 }
@@ -368,9 +394,10 @@ private struct LLMRow: View {
     let model: LLMModel
     let index: Int
     let first: Bool
-    var liveStatus: BrainViewModel.Status? = nil
-    var onInstall: () -> Void = {}
-    var onRemove: () -> Void = {}
+    let status: BrainViewModel.Status?
+    let onInstall: () -> Void
+    let onSetDefault: () -> Void
+    let onRemove: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -378,15 +405,13 @@ private struct LLMRow: View {
                 SoftDivider()
             }
             HStack(alignment: .top, spacing: 28) {
-                // Item number
                 Text(String(format: "%02d", index))
                     .font(DS.Font.serifItalic(36))
-                    .foregroundStyle(model.state == .active ? DS.Palette.accent : DS.Palette.ink3)
+                    .foregroundStyle(status == .active ? DS.Palette.accent : DS.Palette.ink3)
                     .lineLimit(1)
                     .fixedSize()
                     .frame(width: 60, alignment: .leading)
 
-                // Name + description + location chip
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text(model.name)
@@ -412,7 +437,6 @@ private struct LLMRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                // Specs
                 VStack(alignment: .leading, spacing: 6) {
                     specRow(label: "size",    value: model.size)
                     specRow(label: "context", value: model.context)
@@ -421,7 +445,6 @@ private struct LLMRow: View {
                 }
                 .frame(width: 200)
 
-                // Action
                 actionBlock
                     .frame(width: 160, alignment: .trailing)
             }
@@ -435,10 +458,12 @@ private struct LLMRow: View {
         VStack(alignment: .trailing, spacing: 10) {
             badge
 
-            if let liveStatus {
-                liveActionBlock(status: liveStatus)
+            if model.location == .cloud {
+                cloudComingSoon
+            } else if let status {
+                liveActionBlock(status: status)
             } else {
-                mockActionBlock
+                EmptyView()
             }
         }
     }
@@ -448,6 +473,15 @@ private struct LLMRow: View {
         switch status {
         case .active:
             MetaLabel(text: "Loaded in RAM")
+            TrashButton(onTap: onRemove)
+        case .installed:
+            Button("Set as default", action: onSetDefault)
+                .buttonStyle(.plain)
+                .font(DS.Font.sans(11, weight: .medium))
+                .foregroundStyle(DS.Palette.ink)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .overlay(Capsule().stroke(DS.Palette.ink, lineWidth: 1))
             TrashButton(onTap: onRemove)
         case .downloading(let fraction):
             ProgressBar(fraction: fraction)
@@ -469,69 +503,34 @@ private struct LLMRow: View {
         }
     }
 
-    @ViewBuilder
-    private var mockActionBlock: some View {
-        switch model.state {
-        case .active:
-            MetaLabel(text: "Loaded in RAM")
-        case .mockInstalled:
-            Button("Set as default") {
-                // TODO(brain-set-default): not implemented
-            }
-            .buttonStyle(.plain)
-            .font(DS.Font.sans(11, weight: .medium))
-            .foregroundStyle(DS.Palette.ink)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .overlay(Capsule().stroke(DS.Palette.ink, lineWidth: 1))
-        case .mockAvailable:
-            Button {
-                // TODO(brain-download): not implemented
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 10, weight: .bold))
-                    Text("Download")
-                        .font(DS.Font.sans(11, weight: .semibold))
-                }
-                .foregroundStyle(DS.Palette.paper)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(DS.Palette.ink, in: Capsule())
-            }
-            .buttonStyle(.plain)
-        case .mockSoon:
-            Button("Notify me") {
-                // TODO(brain-notify): not implemented
-            }
-            .buttonStyle(.plain)
-            .font(DS.Font.sans(11, weight: .medium))
-            .foregroundStyle(DS.Palette.ink3)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .overlay(
-                Capsule().strokeBorder(
-                    DS.Palette.ruleSoft,
-                    style: StrokeStyle(lineWidth: 1, dash: [3, 3])
-                )
-            )
+    private var cloudComingSoon: some View {
+        Button("Notify me") {
+            // TODO(brain-notify): cloud-model opt-in flow not implemented
         }
+        .buttonStyle(.plain)
+        .font(DS.Font.sans(11, weight: .medium))
+        .foregroundStyle(DS.Palette.ink3)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .overlay(
+            Capsule().strokeBorder(
+                DS.Palette.ruleSoft,
+                style: StrokeStyle(lineWidth: 1, dash: [3, 3])
+            )
+        )
     }
 
     private var badge: some View {
         let tuple: (String, Bool, Bool) = {
-            if let liveStatus {
-                switch liveStatus {
-                case .active:        return ("In use",      true,  true)
-                case .downloading:   return ("Downloading", true,  false)
-                case .notInstalled:  return ("Available",   false, false)
-                }
+            if model.location == .cloud {
+                return ("Coming soon", false, false)
             }
-            switch model.state {
-            case .active:         return ("In use",       true,  true)
-            case .mockInstalled:  return ("Installed",    false, false)
-            case .mockAvailable:  return ("Available",    false, false)
-            case .mockSoon:       return ("Coming soon",  false, false)
+            switch status {
+            case .active:        return ("In use",      false, true)
+            case .installed:     return ("Installed",   false, false)
+            case .downloading:   return ("Downloading", true,  false)
+            case .notInstalled:  return ("Available",   false, false)
+            case .none:          return ("Available",   false, false)
             }
         }()
         return Text(tuple.0).dsTag(solid: tuple.1, accent: tuple.2)
@@ -600,15 +599,10 @@ private struct LocationChip: View {
 // MARK: - Model
 
 private struct LLMModel: Identifiable {
-    enum State {
-        case active
-        case mockInstalled
-        case mockAvailable
-        case mockSoon
-    }
     enum Location { case local, cloud }
 
     let id: String
+    let registryKey: String?    // nil for cloud-only models
     let name: String
     let family: String
     let description: String
@@ -617,6 +611,24 @@ private struct LLMModel: Identifiable {
     let speed: String
     let quality: Double
     let location: Location
-    let state: State
     let highlight: String?
+
+    var nameLeadingPart: String {
+        guard let space = name.firstIndex(of: " ") else { return name }
+        return String(name[..<space])
+    }
+    var nameTrailingPart: String {
+        guard let space = name.firstIndex(of: " ") else { return "" }
+        return String(name[space...])
+    }
+
+    var latencyNumber: String {
+        switch speed {
+        case "Real-time": "300"
+        case "Fast":      "500"
+        case "Medium":    "800"
+        case "Slow":      "1400"
+        default:           "—"
+        }
+    }
 }

@@ -1,12 +1,9 @@
-import FactoryKit
 import Foundation
 import Observation
 
-/// State tracking for the **currently active** ASR engine in the EngineView UI.
-///
-/// V1: only the active engine (whatever `TranscriptionEngine.current` resolves to)
-/// gets install/remove controls. Non-active engines remain static "Set active"
-/// rows — switching to them triggers an app relaunch via the existing flow.
+/// Tracks install/remove state for every real ASR model in the EngineView library.
+/// Operates on library-level IDs (`openai_whisper-small`, `v3`, etc.) via the
+/// static helpers on `DefaultTranscriptionService` / `ParakeetTranscriptionService`.
 @MainActor
 @Observable
 final class EngineViewModel {
@@ -14,44 +11,105 @@ final class EngineViewModel {
     enum Status: Equatable {
         case notInstalled
         case downloading(Double)
-        case active           // installed + loaded in RAM
+        case installed     // on disk, not currently active
+        case active        // on disk and currently loaded
     }
 
-    @ObservationIgnored
-    @Injected(\.transcriptionService) private var service
+    enum Family { case whisper, parakeet }
 
-    private(set) var status: Status = .notInstalled
+    private(set) var statuses: [String: Status] = [:]
     private(set) var lastError: String?
 
-    var currentEngine: TranscriptionEngine { .current }
+    func refresh(whisperIDs: [String], parakeetVersions: [String]) {
+        let currentEngine = TranscriptionEngine.current
+        let activeWhisper  = DefaultTranscriptionService.activeModelID
+        let activeParakeet = ParakeetTranscriptionService.activeVersion
 
-    func refresh() {
-        status = service.isModelInstalled() ? .active : .notInstalled
+        for id in whisperIDs {
+            statuses[id] = resolveStatus(
+                installed: DefaultTranscriptionService.isInstalled(modelID: id),
+                isCurrent: currentEngine == .whisper && id == activeWhisper
+            )
+        }
+        for v in parakeetVersions {
+            statuses[v] = resolveStatus(
+                installed: ParakeetTranscriptionService.isInstalled(version: v),
+                isCurrent: currentEngine == .parakeet && v == activeParakeet
+            )
+        }
     }
 
-    func install() async {
-        status = .downloading(0)
+    func install(family: Family, id: String) async {
+        statuses[id] = .downloading(0)
         lastError = nil
         do {
-            try await service.installModel { fraction in
-                Task { @MainActor in
-                    self.status = .downloading(fraction)
+            switch family {
+            case .whisper:
+                try await DefaultTranscriptionService.install(modelID: id) { fraction in
+                    Task { @MainActor in self.updateProgress(id: id, fraction: fraction) }
+                }
+            case .parakeet:
+                try await ParakeetTranscriptionService.install(version: id) { fraction in
+                    Task { @MainActor in self.updateProgress(id: id, fraction: fraction) }
                 }
             }
-            status = .active
+            statuses[id] = resolveStatus(
+                installed: true,
+                isCurrent: isCurrentlyActive(family: family, id: id)
+            )
         } catch {
-            status = service.isModelInstalled() ? .active : .notInstalled
+            statuses[id] = .notInstalled
             lastError = error.localizedDescription
         }
     }
 
-    func remove() async {
+    /// Updates the progress only if the model is still in the downloading
+    /// state. Prevents late progress callbacks from overwriting a final
+    /// `.installed`/`.active` state set after `install` returned.
+    private func updateProgress(id: String, fraction: Double) {
+        guard case .downloading = statuses[id] else { return }
+        statuses[id] = .downloading(fraction)
+    }
+
+    func remove(family: Family, id: String) async {
         lastError = nil
         do {
-            try await service.removeModel()
-            status = .notInstalled
+            switch family {
+            case .whisper:  try DefaultTranscriptionService.remove(modelID: id)
+            case .parakeet: try ParakeetTranscriptionService.remove(version: id)
+            }
+            statuses[id] = .notInstalled
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    /// Switches the active model. Persists the choice and relaunches the app —
+    /// the new singleton-scoped service will pick up the value on next launch.
+    func setAsDefault(family: Family, id: String) {
+        switch family {
+        case .whisper:
+            UserDefaults.standard.set(id, forKey: Preferences.Key.whisperModelID)
+            TranscriptionEngine.current = .whisper
+        case .parakeet:
+            UserDefaults.standard.set(id, forKey: Preferences.Key.parakeetVersion)
+            TranscriptionEngine.current = .parakeet
+        }
+        AppRelauncher.relaunch()
+    }
+
+    // MARK: - Helpers
+
+    private func resolveStatus(installed: Bool, isCurrent: Bool) -> Status {
+        if !installed { return .notInstalled }
+        return isCurrent ? .active : .installed
+    }
+
+    private func isCurrentlyActive(family: Family, id: String) -> Bool {
+        let current = TranscriptionEngine.current
+        switch family {
+        case .whisper:  return current == .whisper  && id == DefaultTranscriptionService.activeModelID
+        case .parakeet: return current == .parakeet && id == ParakeetTranscriptionService.activeVersion
         }
     }
 }

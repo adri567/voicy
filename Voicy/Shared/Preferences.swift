@@ -7,5 +7,10 @@ nonisolated enum Preferences {
         static let firstLaunchCompleted = "dev.firstLaunchCompleted"
         static let languageSourceCode = "dev.languageSourceCode"
         static let languageTargetCodes = "dev.languageTargetCodes"
+        // Active model identifiers per service family. Switched via "Set as default"
+        // in EngineView/BrainView, followed by an app relaunch.
+        static let whisperModelID  = "dev.whisperModelID"   // e.g. "openai_whisper-small"
+        static let parakeetVersion = "dev.parakeetVersion"  // "v3" or "tdtCtc110m"
+        static let llmRegistryKey  = "dev.llmRegistryKey"   // e.g. "gemma4_e2b_it_4bit"
     }
 }

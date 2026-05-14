@@ -250,7 +250,22 @@ struct HomeView: View {
     }
 
     private var engineDisplayName: String {
-        TranscriptionEngine.current.displayName
+        switch TranscriptionEngine.current {
+        case .whisper:
+            switch DefaultTranscriptionService.activeModelID {
+            case "openai_whisper-tiny":                     return "Whisper Tiny"
+            case "openai_whisper-small":                    return "Whisper Small"
+            case "openai_whisper-large-v3-v20240930_626MB": return "Whisper Large v3 Compact"
+            case "openai_whisper-large-v3_947MB":           return "Whisper Large v3"
+            default:                                         return "Whisper"
+            }
+        case .parakeet:
+            switch ParakeetTranscriptionService.activeVersion {
+            case "v3":         return "Parakeet v3"
+            case "tdtCtc110m": return "Parakeet Lite"
+            default:           return "Parakeet"
+            }
+        }
     }
 
     private var topDestinations: [(name: String, words: Int, pct: Double)] {

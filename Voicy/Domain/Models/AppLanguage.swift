@@ -42,6 +42,25 @@ nonisolated enum LanguageCatalog {
         "tr": "Toplantıyı önümüzdeki haftaya alabilir miyiz? Bugün acil bir işim çıktı.",
     ]
 
+    /// Short question samples used as a second few-shot example in the
+    /// translation prompt — proves to weak instruction-tuned LLMs that
+    /// questions are *translated*, not answered.
+    static let questionPreviews: [String: String] = [
+        "de": "Wie geht es dir heute?",
+        "en": "How are you doing today?",
+        "es": "¿Cómo estás hoy?",
+        "fr": "Comment vas-tu aujourd’hui ?",
+        "it": "Come stai oggi?",
+        "pt": "Como estás hoje?",
+        "nl": "Hoe gaat het vandaag?",
+        "pl": "Jak się masz dzisiaj?",
+        "ru": "Как у тебя дела сегодня?",
+        "sv": "Hur mår du idag?",
+        "da": "Hvordan har du det i dag?",
+        "no": "Hvordan har du det i dag?",
+        "tr": "Bugün nasılsın?",
+    ]
+
     static func language(for code: String) -> AppLanguage {
         all.first(where: { $0.code == code }) ?? all[0]
     }

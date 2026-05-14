@@ -16,16 +16,21 @@ final class DefaultTranscriptionService: TranscriptionService {
             print("[WhisperKit] Skipping auto-load — model not on disk")
             return
         }
-        let model = Self.modelName
+        let model = Self.activeModelID
         print("[WhisperKit] Loading model from cache: \(model)")
         whisperKit = try await WhisperKit(model: model)
         print("[WhisperKit] Model loaded successfully")
     }
 
-    // WhisperKit 1.0.0 removed TextDecoderContextPrefill, making all _turbo variants
-    // incompatible. Use small for now — fast enough with LLM cleanup in the pipeline.
-    // Revisit when WhisperKit adds a new turbo path without TextDecoderContextPrefill.
-    nonisolated private static let modelName = "openai_whisper-small"
+    /// Currently selected Whisper model identifier (from UserDefaults).
+    /// `_turbo` variants are inherently incompatible with WhisperKit 1.0.0
+    /// (TextDecoderContextPrefill was removed); the EngineView UI only offers
+    /// non-turbo IDs.
+    nonisolated static var activeModelID: String {
+        UserDefaults.standard.string(forKey: Preferences.Key.whisperModelID) ?? defaultModelID
+    }
+
+    nonisolated static let defaultModelID = "openai_whisper-small"
 
     nonisolated func startRecording() async throws {
         guard whisperKit != nil else { throw TranscriptionError.modelNotLoaded }
@@ -58,7 +63,7 @@ final class DefaultTranscriptionService: TranscriptionService {
     // MARK: - Download management
 
     nonisolated func isModelInstalled() -> Bool {
-        ModelStorage.exists(at: ModelStorage.whisperKitPath(model: Self.modelName))
+        ModelStorage.exists(at: ModelStorage.whisperKitPath(model: Self.activeModelID))
     }
 
     nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
@@ -70,7 +75,7 @@ final class DefaultTranscriptionService: TranscriptionService {
         // into RAM. No per-file progress hook in the public init — we report
         // 0 → 1 around the call.
         progress(0.05)
-        let model = Self.modelName
+        let model = Self.activeModelID
         let kit = try await WhisperKit(model: model)
         whisperKit = kit
         progress(1.0)
@@ -78,8 +83,29 @@ final class DefaultTranscriptionService: TranscriptionService {
 
     nonisolated func removeModel() async throws {
         whisperKit = nil
-        try ModelStorage.remove(at: ModelStorage.whisperKitPath(model: Self.modelName))
+        try ModelStorage.remove(at: ModelStorage.whisperKitPath(model: Self.activeModelID))
         print("[WhisperKit] Model removed from disk")
+    }
+
+    // MARK: - Static API (any model, not just the active one)
+
+    nonisolated static func isInstalled(modelID: String) -> Bool {
+        ModelStorage.exists(at: ModelStorage.whisperKitPath(model: modelID))
+    }
+
+    /// Downloads the given model into the WhisperKit cache. Briefly instantiates
+    /// `WhisperKit(model:)` to trigger the download, then discards the instance —
+    /// the model lives on disk afterwards. RAM-loading of the *active* model
+    /// happens later, on next app launch.
+    nonisolated static func install(modelID: String, progress: @escaping @Sendable (Double) -> Void) async throws {
+        progress(0.05)
+        let kit = try await WhisperKit(model: modelID)
+        _ = kit
+        progress(1.0)
+    }
+
+    nonisolated static func remove(modelID: String) throws {
+        try ModelStorage.remove(at: ModelStorage.whisperKitPath(model: modelID))
     }
 }
 
