@@ -19,8 +19,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("[Voicy] App gestartet — Hotkey: Fn")
         }
 
+        let onboardingDone = UserDefaults.standard.bool(forKey: Preferences.Key.onboardingCompleted)
         let firstLaunchDone = UserDefaults.standard.bool(forKey: Preferences.Key.firstLaunchCompleted)
-        if firstLaunchDone {
+
+        if !onboardingDone {
+            // Close the auto-opened MainWindow and bring Onboarding to the front.
+            DispatchQueue.main.async {
+                NSApp.windows
+                    .first(where: { $0.identifier?.rawValue == MainWindowID.id })?
+                    .close()
+                NSApp.windows
+                    .first(where: { $0.identifier?.rawValue == OnboardingWindowID.id })?
+                    .makeKeyAndOrderFront(nil)
+            }
+        } else if firstLaunchDone {
             NSApp.windows
                 .first(where: { $0.identifier?.rawValue == MainWindowID.id })?
                 .close()
@@ -42,6 +54,10 @@ enum MainWindowID {
     static let id = "main"
 }
 
+enum OnboardingWindowID {
+    static let id = "onboarding"
+}
+
 @main
 struct VoicyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -58,12 +74,33 @@ struct VoicyApp: App {
         Window("Voicy", id: MainWindowID.id) {
             MainWindowView(
                 viewModel: appDelegate.coordinator.viewModel,
-                languageCycleService: appDelegate.coordinator.languageCycleService
+                modeCycleService: appDelegate.coordinator.modeCycleService
             )
         }
         .defaultSize(width: 1440, height: 860)
         .windowResizability(.contentMinSize)
         .windowStyle(.hiddenTitleBar)
         .modelContainer(Container.shared.modelContainer())
+
+        Window("Voicy — Onboarding", id: OnboardingWindowID.id) {
+            OnboardingHostView()
+        }
+        .defaultSize(width: 1280, height: 820)
+        .windowResizability(.contentMinSize)
+        .windowStyle(.hiddenTitleBar)
+    }
+}
+
+private struct OnboardingHostView: View {
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
+
+    var body: some View {
+        OnboardingView {
+            UserDefaults.standard.set(true, forKey: Preferences.Key.onboardingCompleted)
+            openWindow(id: MainWindowID.id)
+            dismissWindow(id: OnboardingWindowID.id)
+        }
+        .frame(minWidth: 1280, minHeight: 820)
     }
 }

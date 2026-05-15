@@ -8,11 +8,17 @@ import Testing
 struct RecordingViewModelTests {
 
     init() {
+        // Reset any modes-reel that prior tests may have written, otherwise
+        // the new ModeCycleService picks up state from a previous test class.
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: Preferences.Key.modesReel)
+        defaults.removeObject(forKey: Preferences.Key.sourceLanguageCode)
+
         Container.shared.transcriptionService.register { MockTranscriptionService() }
         Container.shared.textCorrectionService.register { NoopTextCorrectionService() }
         Container.shared.transcriptionHistoryService.register { NoopTranscriptionHistoryService() }
-        Container.shared.languageCycleService.register {
-            MainActor.assumeIsolated { LanguageCycleService() }
+        Container.shared.modeCycleService.register {
+            MainActor.assumeIsolated { ModeCycleService() }
         }
     }
 
@@ -67,13 +73,12 @@ struct RecordingViewModelTests {
         #expect(viewModel.transcript.isEmpty)
     }
 
-    @Test("Step 0: kein LLM-Call, Transcript ist der ASR-Rohtext")
-    func stepZeroSkipsLLM() async {
+    @Test("Raw-Mode: kein LLM-Call, Transcript ist der ASR-Rohtext")
+    func rawModeSkipsLLM() async {
         let spy = RecordingTextCorrectionSpy()
         Container.shared.textCorrectionService.register { spy }
-        let cycle = Container.shared.languageCycleService()
-        cycle.setSource("de")
-        cycle.resetCycle()
+        let cycle = Container.shared.modeCycleService()
+        cycle.setStep(0) // default reel starts with .raw
 
         let viewModel = RecordingViewModel()
         await viewModel.onAppear()
@@ -84,13 +89,15 @@ struct RecordingViewModelTests {
         #expect(viewModel.transcript == MockTranscriptionService.mockText)
     }
 
-    @Test("Mit aktivem Cycle-Target übersetzt: target wird durchgereicht")
-    func correctionUsesActiveTargetWhenStepGreaterZero() async {
+    @Test("Translate-Mode: LLM mit mode + sourceLanguage aufgerufen")
+    func translateModeCallsLLM() async {
         let spy = RecordingTextCorrectionSpy()
         Container.shared.textCorrectionService.register { spy }
-        let cycle = Container.shared.languageCycleService()
-        cycle.setSource("de")
-        cycle.setTarget(at: 0, code: "fr")
+        let cycle = Container.shared.modeCycleService()
+        cycle.setSourceLanguage("de")
+        // Default reel slot 1 is .translate; force it to target French.
+        let translateID = cycle.modes[1].id
+        cycle.update(id: translateID) { $0.targetCode = "fr" }
         cycle.setStep(1)
 
         let viewModel = RecordingViewModel()
@@ -98,8 +105,50 @@ struct RecordingViewModelTests {
         await viewModel.toggleRecording()
         await viewModel.toggleRecording()
 
+        #expect(await spy.callCount == 1)
+        #expect(await spy.lastMode?.type == .translate)
+        #expect(await spy.lastMode?.targetCode == "fr")
         #expect(await spy.lastSource?.code == "de")
-        #expect(await spy.lastTarget?.code == "fr")
+    }
+
+    @Test("Developer-Mode: LLM mit type .developer aufgerufen")
+    func developerModeCallsLLM() async {
+        let spy = RecordingTextCorrectionSpy()
+        Container.shared.textCorrectionService.register { spy }
+        let cycle = Container.shared.modeCycleService()
+        let id = cycle.modes[1].id
+        cycle.update(id: id) { $0.type = .developer }
+        cycle.setStep(1)
+
+        let viewModel = RecordingViewModel()
+        await viewModel.onAppear()
+        await viewModel.toggleRecording()
+        await viewModel.toggleRecording()
+
+        #expect(await spy.lastMode?.type == .developer)
+    }
+
+    @Test("Custom-Mode: prompt wird durchgereicht")
+    func customModePassesPrompt() async {
+        let spy = RecordingTextCorrectionSpy()
+        Container.shared.textCorrectionService.register { spy }
+        let cycle = Container.shared.modeCycleService()
+        let id = cycle.modes[1].id
+        cycle.update(id: id) { slot in
+            slot.type = .custom
+            slot.name = "Slack reply"
+            slot.emoji = "💬"
+            slot.prompt = "Rewrite as a short Slack message."
+        }
+        cycle.setStep(1)
+
+        let viewModel = RecordingViewModel()
+        await viewModel.onAppear()
+        await viewModel.toggleRecording()
+        await viewModel.toggleRecording()
+
+        #expect(await spy.lastMode?.type == .custom)
+        #expect(await spy.lastMode?.prompt == "Rewrite as a short Slack message.")
     }
 }
 
@@ -151,8 +200,8 @@ final class NoopTextCorrectionService: TextCorrectionService {
     nonisolated func loadModel(onProgress: (@Sendable (Double) -> Void)?) async throws {}
     nonisolated func correct(
         _ text: String,
-        sourceLanguage: AppLanguage,
-        targetLanguage: AppLanguage?
+        mode: Mode,
+        sourceLanguage: AppLanguage
     ) async throws -> String { text }
     nonisolated func isModelInstalled() -> Bool { true }
     nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws { progress(1.0) }
@@ -161,27 +210,27 @@ final class NoopTextCorrectionService: TextCorrectionService {
 
 actor RecordingTextCorrectionSpy: TextCorrectionService {
     private(set) var lastSource: AppLanguage?
-    private(set) var lastTarget: AppLanguage?
+    private(set) var lastMode: Mode?
     private(set) var callCount = 0
 
     init() {}
     nonisolated func loadModel(onProgress: (@Sendable (Double) -> Void)?) async throws {}
     nonisolated func correct(
         _ text: String,
-        sourceLanguage: AppLanguage,
-        targetLanguage: AppLanguage?
+        mode: Mode,
+        sourceLanguage: AppLanguage
     ) async throws -> String {
-        await record(source: sourceLanguage, target: targetLanguage)
-        return text + (targetLanguage.map { " [→\($0.code)]" } ?? " [cleaned]")
+        await record(mode: mode, source: sourceLanguage)
+        return text + " [\(mode.type.rawValue)]"
     }
     nonisolated func isModelInstalled() -> Bool { true }
     nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws { progress(1.0) }
     nonisolated func removeModel() async throws {}
 
-    private func record(source: AppLanguage, target: AppLanguage?) {
+    private func record(mode: Mode, source: AppLanguage) {
         callCount += 1
+        lastMode = mode
         lastSource = source
-        lastTarget = target
     }
 }
 
@@ -201,146 +250,171 @@ enum TestError: Error {
     case transcriptionFailed
 }
 
-// MARK: - LanguageCycleService
+// MARK: - ModeCycleService
 
 @MainActor
-@Suite("LanguageCycleService", .serialized)
-struct LanguageCycleServiceTests {
+@Suite("ModeCycleService", .serialized)
+struct ModeCycleServiceTests {
 
-    private func makeService(source: String, targets: [String?]) -> LanguageCycleService {
+    private func clearDefaults() {
         let defaults = UserDefaults.standard
-        defaults.set(source, forKey: Preferences.Key.languageSourceCode)
-        let codes = targets.map { $0 ?? "" }
-        defaults.set(codes, forKey: Preferences.Key.languageTargetCodes)
-        return LanguageCycleService()
+        defaults.removeObject(forKey: Preferences.Key.modesReel)
+        defaults.removeObject(forKey: Preferences.Key.sourceLanguageCode)
     }
 
-    @Test("Default-Step ist 0, source ist aktiv, alle targets nil")
-    func initialStateHasSourceActiveAndNoTargets() {
-        let service = makeService(source: "de", targets: [nil, nil, nil])
+    @Test("Default-Reel: 4 Slots, step=0, Source=de")
+    func defaultReel() {
+        clearDefaults()
+        let service = ModeCycleService()
+        #expect(service.modes.count == 4)
         #expect(service.step == 0)
-        #expect(service.activeLanguage.code == "de")
-        #expect(service.activeTarget == nil)
-        #expect(service.targets.allSatisfy { $0 == nil })
+        #expect(service.sourceLanguage.code == "de")
+        #expect(service.modes[0].type == .raw)
+        #expect(service.modes[1].type == .translate)
+        #expect(service.modes[2].type == .translate)
+        #expect(service.modes[3].type == .email)
     }
 
-    @Test("cycleForward bleibt bei 0 wenn keine Targets gesetzt sind")
-    func cycleForwardNoOpWithoutTargets() {
-        let service = makeService(source: "de", targets: [nil, nil, nil])
+    @Test("cycleForward wrappt vom letzten Slot zu 0")
+    func cycleForwardWraps() {
+        clearDefaults()
+        let service = ModeCycleService()
+        service.setStep(service.modes.count - 1)
         service.cycleForward()
         #expect(service.step == 0)
     }
 
-    @Test("cycleForward erhöht step bis zum letzten belegten Slot")
-    func cycleForwardClampsAtLastFilled() {
-        let service = makeService(source: "de", targets: ["en", "fr", "nl"])
-        service.cycleForward()
-        #expect(service.step == 1)
-        service.cycleForward()
-        service.cycleForward()
-        #expect(service.step == 3)
-        service.cycleForward()
-        #expect(service.step == 3)
-        #expect(service.activeTarget?.code == "nl")
-    }
-
-    @Test("cycleForward überspringt leere Slots")
-    func cycleForwardSkipsNilSlots() {
-        let service = makeService(source: "de", targets: ["en", nil, "fr"])
-        service.cycleForward()
-        #expect(service.step == 1)
-        #expect(service.activeTarget?.code == "en")
-        service.cycleForward()
-        #expect(service.step == 3)
-        #expect(service.activeTarget?.code == "fr")
-    }
-
-    @Test("cycleBackward überspringt leere Slots")
-    func cycleBackwardSkipsNilSlots() {
-        let service = makeService(source: "de", targets: ["en", nil, "fr"])
-        service.setStep(3)
+    @Test("cycleBackward wrappt von 0 zum letzten Slot")
+    func cycleBackwardWraps() {
+        clearDefaults()
+        let service = ModeCycleService()
+        service.setStep(0)
         service.cycleBackward()
-        #expect(service.step == 1)
-        service.cycleBackward()
-        #expect(service.step == 0)
+        #expect(service.step == service.modes.count - 1)
     }
 
-    @Test("setStep akzeptiert nur belegte Slots")
-    func setStepRejectsEmptySlot() {
-        let service = makeService(source: "de", targets: ["en", nil, nil])
-        service.setStep(2)
-        #expect(service.step == 0)
+    @Test("addMode: clamped bei maxSlots")
+    func addModeClampedAtMax() {
+        clearDefaults()
+        let service = ModeCycleService()
+        while service.modes.count < ModeCycleService.maxSlots {
+            _ = service.addMode()
+        }
+        #expect(service.modes.count == ModeCycleService.maxSlots)
+        let attempt = service.addMode()
+        #expect(attempt == nil)
+        #expect(service.modes.count == ModeCycleService.maxSlots)
+    }
+
+    @Test("removeMode: kann alle non-raw Slots entfernen, Raw bleibt")
+    func removeModeDownToRawOnly() {
+        clearDefaults()
+        let service = ModeCycleService()
+        #expect(service.modes.count == 4)
+        // Remove every non-zero slot, repeatedly grabbing the new slot 1.
+        while service.modes.count > 1 {
+            let id = service.modes[1].id
+            service.removeMode(id: id)
+        }
+        #expect(service.modes.count == ModeCycleService.minSlots)
+        #expect(service.modes[0].type == .raw)
+    }
+
+    @Test("move: tauscht Positionen und step folgt")
+    func moveReorders() {
+        clearDefaults()
+        let service = ModeCycleService()
+        let originalSecond = service.modes[1].id
         service.setStep(1)
-        #expect(service.step == 1)
-    }
-
-    @Test("setStep akzeptiert nur 0...3")
-    func setStepRejectsOutOfRange() {
-        let service = makeService(source: "de", targets: ["en", "fr", "nl"])
-        service.setStep(5)
-        #expect(service.step == 0)
-        service.setStep(-1)
-        #expect(service.step == 0)
-        service.setStep(2)
+        service.move(id: originalSecond, by: 1)
+        #expect(service.modes[2].id == originalSecond)
         #expect(service.step == 2)
     }
 
-    @Test("setTarget ignoriert ungültigen Index")
-    func setTargetIgnoresInvalidIndex() {
-        let service = makeService(source: "de", targets: ["en", "fr", "nl"])
-        service.setTarget(at: 5, code: "es")
-        #expect(service.targets.map { $0?.code } == ["en", "fr", "nl"])
+    @Test("update mutates only the given slot")
+    func updateMutates() {
+        clearDefaults()
+        let service = ModeCycleService()
+        let id = service.modes[1].id
+        service.update(id: id) { $0.targetCode = "es" }
+        #expect(service.modes[1].targetCode == "es")
+        // Other slots unchanged
+        #expect(service.modes[0].type == .raw)
     }
 
-    @Test("clearTarget setzt Slot auf nil und resetCycled wenn aktiv")
-    func clearTargetResetsCycleWhenActive() {
-        let service = makeService(source: "de", targets: ["en", "fr", nil])
-        service.setStep(2)
-        service.clearTarget(at: 1)
-        #expect(service.targets[1] == nil)
-        #expect(service.step == 0)
+    @Test("setSourceLanguage: Translate-Slots mit target==newSource werden remapped")
+    func setSourceLanguageReconcilesTargets() {
+        clearDefaults()
+        let service = ModeCycleService()
+        // Force a translate slot to target English.
+        let id = service.modes[1].id
+        service.update(id: id) { $0.targetCode = "en" }
+        // Now switch source to English — the slot must remap to something else.
+        service.setSourceLanguage("en")
+        #expect(service.sourceLanguage.code == "en")
+        #expect(service.modes[1].targetCode != "en")
     }
 
-    @Test("clearTarget hält den Cycle wenn ein anderer Slot aktiv ist")
-    func clearTargetKeepsCycleWhenOtherActive() {
-        let service = makeService(source: "de", targets: ["en", "fr", "nl"])
-        service.setStep(1)
-        service.clearTarget(at: 2)
-        #expect(service.targets[2] == nil)
-        #expect(service.step == 1)
+    @Test("Persistence: nach setSourceLanguage liest neuer Service den Wert")
+    func sourcePersists() {
+        clearDefaults()
+        let service = ModeCycleService()
+        service.setSourceLanguage("es")
+        let next = ModeCycleService()
+        #expect(next.sourceLanguage.code == "es")
     }
 
-    @Test("setSource persistiert in UserDefaults")
-    func setSourcePersists() {
-        let service = makeService(source: "de", targets: ["en", "fr", "nl"])
-        service.setSource("es")
-        let stored = UserDefaults.standard.string(forKey: Preferences.Key.languageSourceCode)
-        #expect(stored == "es")
-        #expect(service.source.code == "es")
+    @Test("Persistence: nach update wird Reel persisted")
+    func modesPersist() {
+        clearDefaults()
+        let service = ModeCycleService()
+        let id = service.modes[1].id
+        service.update(id: id) { $0.targetCode = "it" }
+        let next = ModeCycleService()
+        #expect(next.modes[1].targetCode == "it")
     }
 
-    @Test("setTarget persistiert in UserDefaults")
-    func setTargetPersists() {
-        let service = makeService(source: "de", targets: ["en", "fr", "nl"])
-        service.setTarget(at: 1, code: "it")
-        let stored = UserDefaults.standard.stringArray(forKey: Preferences.Key.languageTargetCodes)
-        #expect(stored == ["en", "it", "nl"])
+    @Test("Slot 0: Type kann nicht via update geändert werden")
+    func slot0TypeLocked() {
+        clearDefaults()
+        let service = ModeCycleService()
+        let id = service.modes[0].id
+        service.update(id: id) { $0.type = .email }
+        #expect(service.modes[0].type == .raw)
     }
 
-    @Test("clearTarget persistiert leeren String als nil-Marker")
-    func clearTargetPersistsEmptyString() {
-        let service = makeService(source: "de", targets: ["en", "fr", "nl"])
-        service.clearTarget(at: 1)
-        let stored = UserDefaults.standard.stringArray(forKey: Preferences.Key.languageTargetCodes)
-        #expect(stored == ["en", "", "nl"])
+    @Test("Slot 0: removeMode wird ignoriert")
+    func slot0RemoveBlocked() {
+        clearDefaults()
+        let service = ModeCycleService()
+        // Add a 5th slot so we're above minSlots and the min-clamp doesn't
+        // mask the slot-0-lock behaviour.
+        _ = service.addMode()
+        let countBefore = service.modes.count
+        let id = service.modes[0].id
+        service.removeMode(id: id)
+        #expect(service.modes.count == countBefore)
+        #expect(service.modes[0].id == id)
     }
 
-    @Test("Init liest leere Strings als nil-Slot")
-    func initParsesEmptyStringsAsNil() {
-        let service = makeService(source: "de", targets: ["en", nil, "fr"])
-        #expect(service.targets.count == 3)
-        #expect(service.targets[0]?.code == "en")
-        #expect(service.targets[1] == nil)
-        #expect(service.targets[2]?.code == "fr")
+    @Test("Slot 0: move wird ignoriert")
+    func slot0MoveBlocked() {
+        clearDefaults()
+        let service = ModeCycleService()
+        let id = service.modes[0].id
+        service.move(id: id, by: 1)
+        #expect(service.modes[0].id == id)
+    }
+
+    @Test("Slot 1: move(by: -1) verschiebt nicht in slot 0")
+    func cannotDisplaceSlot0() {
+        clearDefaults()
+        let service = ModeCycleService()
+        let slot0 = service.modes[0].id
+        let slot1 = service.modes[1].id
+        service.move(id: slot1, by: -1)
+        // Slot 0 stays put. Slot 1 still at index 1.
+        #expect(service.modes[0].id == slot0)
+        #expect(service.modes[1].id == slot1)
     }
 }

@@ -80,6 +80,10 @@ struct MenuBarStatusView: View {
             statusRow(color: .orange, label: "Transkribiere…")
         case .correcting:
             statusRow(color: .orange, label: "Korrigiere…")
+        case .noModel:
+            statusRow(color: .yellow, label: "Kein Voice-Modell installiert")
+        case .noBrain:
+            statusRow(color: .yellow, label: "Kein KI-Modell installiert")
         }
     }
 

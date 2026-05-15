@@ -7,7 +7,7 @@ import Foundation
 final class AppCoordinator {
 
     let viewModel = RecordingViewModel()
-    let languageCycleService = Container.shared.languageCycleService()
+    let modeCycleService = Container.shared.modeCycleService()
     nonisolated(unsafe) private var globalMonitor: Any?
     nonisolated(unsafe) private var arrowKeyGlobalMonitor: Any?
     nonisolated(unsafe) private var arrowKeyLocalMonitor: Any?
@@ -24,7 +24,7 @@ final class AppCoordinator {
             let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility")!
             NSWorkspace.shared.open(url)
         }
-        overlayController = RecordingOverlayWindowController(viewModel: viewModel, cycle: languageCycleService)
+        overlayController = RecordingOverlayWindowController(viewModel: viewModel, cycle: modeCycleService)
         transcriptController = TranscriptPopupWindowController(viewModel: viewModel)
         overlayController?.show()
         registerHotkey()
@@ -46,11 +46,13 @@ final class AppCoordinator {
     }
     
     private func handleFnPress() async {
-        guard viewModel.state == .idle else { return }
+        guard viewModel.state == .idle
+              || viewModel.state == .noModel
+              || viewModel.state == .noBrain else { return }
         transcriptController?.hide()
         viewModel.clearTranscript()
         viewModel.captureTargetApp(targetAppService.captureCurrent())
-        languageCycleService.resetCycle()
+        modeCycleService.resetCycle()
         installArrowKeyMonitor()
         await viewModel.toggleRecording()
     }
@@ -93,9 +95,9 @@ final class AppCoordinator {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if isForward {
-                    self.languageCycleService.cycleForward()
+                    self.modeCycleService.cycleForward()
                 } else {
-                    self.languageCycleService.cycleBackward()
+                    self.modeCycleService.cycleBackward()
                 }
             }
             return nil // swallow the key so we don't paste End/Home into the target app

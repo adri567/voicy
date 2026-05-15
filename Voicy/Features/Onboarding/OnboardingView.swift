@@ -1,0 +1,46 @@
+import SwiftUI
+
+struct OnboardingView: View {
+    @State private var state = OnboardingState()
+    let onFinish: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            OnboardingChrome(state: state)
+
+            screen
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(DS.Palette.paper)
+        }
+        .background(DS.Palette.paper2)
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(.rightArrow) {
+            state.next()
+            return .handled
+        }
+        .onKeyPress(.leftArrow) {
+            state.back()
+            return .handled
+        }
+        .onAppear {
+            // Refresh permission state on launch
+            state.micPermission = PermissionService.shared.currentMicrophoneState()
+            state.a11yPermission = PermissionService.shared.currentAccessibilityState()
+        }
+    }
+
+    @ViewBuilder
+    private var screen: some View {
+        switch state.step {
+        case .welcome:       WelcomeScreen(state: state)
+        case .microphone:    MicrophoneScreen(state: state)
+        case .accessibility: AccessibilityScreen(state: state)
+        case .model:         ModelScreen(state: state)
+        case .brain:         BrainScreen(state: state)
+        case .language:      LanguageScreen(state: state)
+        case .practice:      PracticeScreen(state: state)
+        case .allSet:        AllSetScreen(state: state, onFinish: onFinish)
+        }
+    }
+}

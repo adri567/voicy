@@ -1,42 +1,42 @@
 import SwiftUI
 
 enum SidebarSection: String, CaseIterable, Identifiable {
-    case home, snippets, engine, brain, languages, hotkey, settings
+    case home, snippets, engine, brain, modes, hotkey, settings
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .home:      "Home"
-        case .snippets:  "Snippets"
-        case .engine:    "Engine"
-        case .brain:     "Brain"
-        case .languages: "Languages"
-        case .hotkey:    "Hotkey"
-        case .settings:  "Settings"
+        case .home:     "Home"
+        case .snippets: "Snippets"
+        case .engine:   "Engine"
+        case .brain:    "Brain"
+        case .modes:    "Modes"
+        case .hotkey:   "Hotkey"
+        case .settings: "Settings"
         }
     }
 
     var hint: String {
         switch self {
-        case .home:      "Verlauf"
-        case .snippets:  "Shortcuts"
-        case .engine:    "Voice models"
-        case .brain:     "Language models"
-        case .languages: "Modes"
-        case .hotkey:    "Trigger"
-        case .settings:  "Preferences"
+        case .home:     "Verlauf"
+        case .snippets: "Shortcuts"
+        case .engine:   "Voice models"
+        case .brain:    "Language models"
+        case .modes:    "Slots"
+        case .hotkey:   "Trigger"
+        case .settings: "Preferences"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .home:      "house"
-        case .snippets:  "doc.on.doc"
-        case .engine:    "gearshape.2"
-        case .brain:     "brain"
-        case .languages: "character.bubble"
-        case .hotkey:    "keyboard"
-        case .settings:  "slider.horizontal.3"
+        case .home:     "house"
+        case .snippets: "doc.on.doc"
+        case .engine:   "gearshape.2"
+        case .brain:    "brain"
+        case .modes:    "character.bubble"
+        case .hotkey:   "keyboard"
+        case .settings: "slider.horizontal.3"
         }
     }
 }
@@ -161,6 +161,8 @@ struct MainWindowSidebar: View {
         case .idle:                      return Color(red: 0.165, green: 0.541, blue: 0.282)
         case .recording:                 return DS.Palette.accent
         case .transcribing, .correcting: return DS.Palette.highlight
+        case .noModel:                   return DS.Palette.highlight
+        case .noBrain:                   return DS.Palette.highlight
         }
     }
 
@@ -171,6 +173,8 @@ struct MainWindowSidebar: View {
         case .recording:    return "Recording…"
         case .transcribing: return "Transcribing…"
         case .correcting:   return "Polishing…"
+        case .noModel:      return "No voice model installed"
+        case .noBrain:      return "No AI model installed"
         }
     }
 }

@@ -1,9 +1,12 @@
 protocol TextCorrectionService: Sendable {
     nonisolated func loadModel(onProgress: (@Sendable (Double) -> Void)?) async throws
+
+    /// Run the given mode against the transcript. The `.raw` case never hits
+    /// this method — RecordingViewModel branches before calling.
     nonisolated func correct(
         _ text: String,
-        sourceLanguage: AppLanguage,
-        targetLanguage: AppLanguage?
+        mode: Mode,
+        sourceLanguage: AppLanguage
     ) async throws -> String
 
     // MARK: - Download management

@@ -45,9 +45,9 @@ extension Container {
             .singleton
     }
 
-    var languageCycleService: Factory<LanguageCycleService> {
+    var modeCycleService: Factory<ModeCycleService> {
         Factory(self) {
-            MainActor.assumeIsolated { LanguageCycleService() }
+            MainActor.assumeIsolated { ModeCycleService() }
         }
         .singleton
     }

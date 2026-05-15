@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
 
     var viewModel: RecordingViewModel
+    @Bindable var cycle: ModeCycleService
 
     // MOCK state — not persisted, not wired to system. TODO(settings-impl).
     @State private var launchAtLogin = false
@@ -114,6 +115,10 @@ struct SettingsView: View {
                                   isMock: true))   // TODO(sound-toggle)
             }
 
+            SettingsSection(title: "Language", caption: "What you speak — and what Voicy listens for") {
+                AnyView(LanguageRow(cycle: cycle))
+            }
+
             SettingsSection(title: "Audio", caption: "The microphone and how Voicy listens") {
                 AnyView(SelectRow(label: "Input device",
                                   desc: "Pick which microphone Voicy listens to.",
@@ -162,6 +167,10 @@ struct SettingsView: View {
                                     .init(id: "manual", label: "Manual", sub: "Only when you ask"),
                                  ],
                                  isMock: true))   // TODO(update-channel)
+            }
+
+            SettingsSection(title: "Onboarding", caption: "Replay the first-run tour any time you like") {
+                AnyView(OnboardingResetRow())
             }
 
             HStack {
@@ -467,5 +476,148 @@ private extension EnvironmentValues {
     var isFirstRow: Bool {
         get { self[FirstRowKey.self] }
         set { self[FirstRowKey.self] = newValue }
+    }
+}
+
+// MARK: - Language source picker (pill + popover grid)
+
+private struct LanguageRow: View {
+
+    @Bindable var cycle: ModeCycleService
+    @State private var open = false
+
+    private var current: AppLanguage { cycle.sourceLanguage }
+
+    var body: some View {
+        HStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("You speak in")
+                    .font(DS.Font.sans(14, weight: .semibold))
+                    .foregroundStyle(DS.Palette.ink)
+                Text("The default language Voicy transcribes. Every Translate mode uses this as its source — change here, and every mode re-points.")
+                    .font(DS.Font.sans(12))
+                    .lineSpacing(2)
+                    .foregroundStyle(DS.Palette.ink3)
+            }
+            Spacer(minLength: 18)
+            pill
+        }
+        .padding(.vertical, 18)
+    }
+
+    private var pill: some View {
+        Button(action: { open.toggle() }) {
+            HStack(spacing: 10) {
+                Text(current.flag).font(.system(size: 20))
+                Text(current.native)
+                    .font(DS.Font.sans(14, weight: .semibold))
+                    .foregroundStyle(DS.Palette.ink)
+                Text(current.code.uppercased())
+                    .font(DS.Font.mono(10))
+                    .tracking(0.6)
+                    .foregroundStyle(DS.Palette.ink3)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(DS.Palette.ink3)
+                    .rotationEffect(.degrees(open ? 180 : 0))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(DS.Palette.paper, in: Capsule())
+            .overlay(
+                Capsule().stroke(open ? DS.Palette.ink : DS.Palette.ink.opacity(0.18), lineWidth: 1)
+            )
+            .frame(minWidth: 200)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $open, arrowEdge: .top) {
+            SourceLanguageGrid(selected: current.code) { code in
+                cycle.setSourceLanguage(code)
+                open = false
+            }
+        }
+    }
+}
+
+private struct SourceLanguageGrid: View {
+    let selected: String
+    let onPick: (String) -> Void
+
+    private let columns = [GridItem(.flexible(), spacing: 2), GridItem(.flexible(), spacing: 2)]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 2) {
+            ForEach(LanguageCatalog.all) { lang in
+                Button(action: { onPick(lang.code) }) {
+                    HStack(spacing: 10) {
+                        Text(lang.flag).font(.system(size: 18))
+                        Text(lang.native)
+                            .font(DS.Font.sans(13, weight: .medium))
+                            .foregroundStyle(lang.code == selected ? DS.Palette.paper : DS.Palette.ink)
+                        Spacer(minLength: 0)
+                        Text(lang.code.uppercased())
+                            .font(DS.Font.mono(9))
+                            .tracking(0.6)
+                            .foregroundStyle(lang.code == selected ? DS.Palette.paper.opacity(0.55) : DS.Palette.ink3)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .frame(minWidth: 180, alignment: .leading)
+                    .background(
+                        lang.code == selected ? DS.Palette.ink : .clear,
+                        in: RoundedRectangle(cornerRadius: 10)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(8)
+        .frame(width: 380)
+    }
+}
+
+// MARK: - Onboarding reset
+
+private struct OnboardingResetRow: View {
+
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SoftDivider()
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Replay onboarding")
+                        .font(DS.Font.sans(13, weight: .medium))
+                        .foregroundStyle(DS.Palette.ink)
+                    Text("Clears the completed flag, closes this window, and reopens the first-run tour. Useful for testing.")
+                        .font(DS.Font.sans(11))
+                        .lineSpacing(2)
+                        .foregroundStyle(DS.Palette.ink3)
+                        .frame(maxWidth: 440, alignment: .leading)
+                }
+                Spacer()
+                Button(action: resetOnboarding) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.counterclockwise")
+                        Text("Replay")
+                    }
+                    .font(DS.Font.sans(12, weight: .medium))
+                    .foregroundStyle(DS.Palette.ink)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.vertical, 18)
+        }
+    }
+
+    private func resetOnboarding() {
+        UserDefaults.standard.set(false, forKey: Preferences.Key.onboardingCompleted)
+        openWindow(id: OnboardingWindowID.id)
+        dismissWindow(id: MainWindowID.id)
     }
 }

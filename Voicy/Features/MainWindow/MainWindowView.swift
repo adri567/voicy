@@ -3,7 +3,7 @@ import SwiftUI
 struct MainWindowView: View {
 
     var viewModel: RecordingViewModel
-    var languageCycleService: LanguageCycleService
+    var modeCycleService: ModeCycleService
     @State private var selection: SidebarSection = .home
     @State private var sidebarMode: SidebarMode = .full
 
@@ -53,13 +53,13 @@ struct MainWindowView: View {
     @ViewBuilder
     private var detail: some View {
         switch selection {
-        case .home:      HomeView(viewModel: viewModel) { selection = $0 }
-        case .snippets:  SnippetsView()
-        case .engine:    EngineView()
-        case .brain:     BrainView()
-        case .languages: LanguagesView(cycle: languageCycleService)
-        case .hotkey:    HotkeyView()
-        case .settings:  SettingsView(viewModel: viewModel)
+        case .home:     HomeView(viewModel: viewModel) { selection = $0 }
+        case .snippets: SnippetsView()
+        case .engine:   EngineView()
+        case .brain:    BrainView()
+        case .modes:    ModesView(cycle: modeCycleService)
+        case .hotkey:   HotkeyView()
+        case .settings: SettingsView(viewModel: viewModel, cycle: modeCycleService)
         }
     }
 }
