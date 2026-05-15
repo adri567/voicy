@@ -124,12 +124,28 @@ struct BrainView: View {
     }
 
     private var visibleModels: [LLMModel] {
-        models.filter { filter.matches($0, status: status(of: $0)) }
+        let filtered = models.filter { filter.matches($0, status: status(of: $0)) }
+        return filtered.enumerated().sorted { lhs, rhs in
+            let lp = sortPriority(model: lhs.element)
+            let rp = sortPriority(model: rhs.element)
+            if lp != rp { return lp < rp }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
     }
 
     private func status(of model: LLMModel) -> BrainViewModel.Status? {
         guard let key = model.registryKey else { return nil }
         return viewModel.statuses[key]
+    }
+
+    private func sortPriority(model: LLMModel) -> Int {
+        if model.location == .cloud { return 4 }
+        switch status(of: model) {
+        case .active:       return 0
+        case .installed:    return 1
+        case .downloading:  return 2
+        case .notInstalled, .none: return 3
+        }
     }
 
     var body: some View {

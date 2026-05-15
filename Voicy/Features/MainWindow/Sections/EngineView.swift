@@ -81,6 +81,24 @@ struct EngineView: View {
         return models.first { $0.libraryID == activeID } ?? models[1]
     }
 
+    private var sortedModels: [EngineModel] {
+        models.enumerated().sorted { lhs, rhs in
+            let lp = statusPriority(viewModel.statuses[lhs.element.libraryID] ?? .notInstalled)
+            let rp = statusPriority(viewModel.statuses[rhs.element.libraryID] ?? .notInstalled)
+            if lp != rp { return lp < rp }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
+    }
+
+    private func statusPriority(_ status: EngineViewModel.Status) -> Int {
+        switch status {
+        case .active:       return 0
+        case .installed:    return 1
+        case .downloading:  return 2
+        case .notInstalled: return 3
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -229,7 +247,7 @@ struct EngineView: View {
             .padding(.bottom, 20)
 
             VStack(spacing: 0) {
-                ForEach(Array(models.enumerated()), id: \.element.id) { idx, model in
+                ForEach(Array(sortedModels.enumerated()), id: \.element.id) { idx, model in
                     ModelRow(
                         model: model,
                         index: idx + 1,

@@ -7,7 +7,40 @@ struct HomeView: View {
     var viewModel: RecordingViewModel
     var onNavigate: (SidebarSection) -> Void
 
-    @Query(sort: \TranscriptionEntry.createdAt, order: .reverse) private var entries: [TranscriptionEntry]
+    @Query private var entries: [TranscriptionEntry]
+
+    @State private var activeFilter: HistoryFilter = .all
+
+    private static let historyWindowDays = 14
+
+    init(viewModel: RecordingViewModel, onNavigate: @escaping (SidebarSection) -> Void) {
+        self.viewModel = viewModel
+        self.onNavigate = onNavigate
+        let cutoff = Calendar.current.date(byAdding: .day, value: -Self.historyWindowDays, to: Date()) ?? .distantPast
+        _entries = Query(
+            filter: #Predicate<TranscriptionEntry> { $0.createdAt >= cutoff },
+            sort: \.createdAt,
+            order: .reverse
+        )
+    }
+
+    private var filteredEntries: [TranscriptionEntry] {
+        let cal = Calendar.current
+        let now = Date()
+        switch activeFilter {
+        case .all:
+            return entries
+        case .today:
+            return entries.filter { cal.isDateInToday($0.createdAt) }
+        case .week:
+            guard let weekStart = cal.date(byAdding: .day, value: -7, to: now) else { return entries }
+            return entries.filter { $0.createdAt >= weekStart }
+        case .whisper:
+            return entries.filter { $0.engine == .whisper }
+        case .parakeet:
+            return entries.filter { $0.engine == .parakeet }
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -162,11 +195,11 @@ struct HomeView: View {
                     .foregroundStyle(DS.Palette.ink2)
 
                 Spacer()
-                FilterChips()
+                FilterChips(active: $activeFilter)
             }
             .padding(.bottom, 20)
 
-            if entries.isEmpty {
+            if filteredEntries.isEmpty {
                 emptyHistory
             } else {
                 buckets
@@ -176,7 +209,7 @@ struct HomeView: View {
             }
 
             HStack {
-                MetaLabel(text: "\(entries.count) transcripts total")
+                MetaLabel(text: "\(filteredEntries.count) transcripts · last \(Self.historyWindowDays) days")
                 Spacer()
             }
             .padding(.top, 24)
@@ -198,8 +231,8 @@ struct HomeView: View {
     }
 
     private var buckets: some View {
-        let grouped = groupByDay(entries)
-        return VStack(alignment: .leading, spacing: 0) {
+        let grouped = groupByDay(filteredEntries)
+        return LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(Array(grouped.enumerated()), id: \.offset) { idx, bucket in
                 bucketHeader(bucket: bucket, first: idx == 0)
                     .padding(.top, idx == 0 ? 16 : 20)
@@ -283,15 +316,28 @@ struct HomeView: View {
         s.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
     }
 
+    private static let weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE, MMMM d"
+        return f
+    }()
+
+    private static let shortDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM d"
+        return f
+    }()
+
+    private static let yearFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy"
+        return f
+    }()
+
     private func groupByDay(_ list: [TranscriptionEntry]) -> [HistoryBucket] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
         let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
-
-        let weekdayFmt = DateFormatter()
-        weekdayFmt.dateFormat = "EEEE, MMMM d"
-        let shortFmt = DateFormatter()
-        shortFmt.dateFormat = "EEE, MMM d"
 
         var byDay: [Date: [TranscriptionEntry]] = [:]
         for entry in list {
@@ -305,15 +351,13 @@ struct HomeView: View {
             let subtitle: String
             if cal.isDate(day, inSameDayAs: today) {
                 title = "Today"
-                subtitle = weekdayFmt.string(from: day).uppercased()
+                subtitle = Self.weekdayFormatter.string(from: day).uppercased()
             } else if cal.isDate(day, inSameDayAs: yesterday) {
                 title = "Yesterday"
-                subtitle = weekdayFmt.string(from: day).uppercased()
+                subtitle = Self.weekdayFormatter.string(from: day).uppercased()
             } else {
-                title = shortFmt.string(from: day)
-                let yearFmt = DateFormatter()
-                yearFmt.dateFormat = "yyyy"
-                subtitle = yearFmt.string(from: day)
+                title = Self.shortDayFormatter.string(from: day)
+                subtitle = Self.yearFormatter.string(from: day)
             }
             return HistoryBucket(date: day, title: title, subtitle: subtitle, entries: items)
         }
@@ -343,23 +387,35 @@ private struct StatRow: View {
     }
 }
 
+enum HistoryFilter: CaseIterable, Hashable {
+    case all, today, week, whisper, parakeet
+
+    var label: String {
+        switch self {
+        case .all:      "ALL"
+        case .today:    "TODAY"
+        case .week:     "WEEK"
+        case .whisper:  "WHISPER"
+        case .parakeet: "PARAKEET"
+        }
+    }
+}
+
 private struct FilterChips: View {
-    // MOCK: filtering is not wired yet. TODO(history-filter).
-    @State private var active: String = "All"
-    private let chips = ["All", "Pinned", "Whisper", "Parakeet"]
+    @Binding var active: HistoryFilter
 
     var body: some View {
         HStack(spacing: 8) {
-            ForEach(chips, id: \.self) { c in
-                Button(action: { active = c }) {
-                    Text(c.uppercased())
+            ForEach(HistoryFilter.allCases, id: \.self) { filter in
+                Button(action: { active = filter }) {
+                    Text(filter.label)
                         .font(DS.Font.mono(10))
                         .tracking(1)
-                        .foregroundStyle(active == c ? DS.Palette.paper : DS.Palette.ink2)
+                        .foregroundStyle(active == filter ? DS.Palette.paper : DS.Palette.ink2)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(active == c ? DS.Palette.ink : Color.clear, in: Capsule())
-                        .overlay(Capsule().stroke(active == c ? DS.Palette.ink : DS.Palette.ruleSoft, lineWidth: 1))
+                        .background(active == filter ? DS.Palette.ink : Color.clear, in: Capsule())
+                        .overlay(Capsule().stroke(active == filter ? DS.Palette.ink : DS.Palette.ruleSoft, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
@@ -370,6 +426,12 @@ private struct FilterChips: View {
 private struct HistoryRow: View {
     let entry: TranscriptionEntry
     let first: Bool
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -450,9 +512,7 @@ private struct HistoryRow: View {
     }
 
     private var timeString: String {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f.string(from: entry.createdAt)
+        Self.timeFormatter.string(from: entry.createdAt)
     }
 
     private var durationString: String {
