@@ -27,6 +27,9 @@ final class RecordingViewModel {
     @ObservationIgnored
     @Injected(\.modeCycleService) private var modeCycle
 
+    @ObservationIgnored
+    @Injected(\.snippetService) private var snippetService
+
     private(set) var state: RecordingState = .loadingModel
     private(set) var transcript: String = ""
     private(set) var audioLevel: Float = 0
@@ -194,13 +197,16 @@ final class RecordingViewModel {
             var didCorrect = false
             var brainMissing = false
             var finalText = result.text
-            // Raw mode skips the LLM entirely. Every other mode hits the
-            // correction service with the active mode for type-specific
+            // Raw mode pastes the transcription verbatim. Snippets mode runs
+            // a deterministic string-replace pass (no LLM, no brain check).
+            // Every other mode hits the correction service for type-specific
             // prompting (translate/developer/email/custom). If the user is in
             // an AI mode but no brain is installed yet, we degrade gracefully:
             // the raw transcription still gets pasted, and the overlay flashes
             // a "No AI model installed" hint so they know polishing was skipped.
-            if mode.type != .raw, !result.text.isEmpty {
+            if mode.type == .snippets, !result.text.isEmpty {
+                finalText = await snippetService.apply(to: result.text)
+            } else if mode.type != .raw, !result.text.isEmpty {
                 if MLXTextCorrectionService.ensureActiveBrainInstalled() != nil {
                     state = .correcting
                     if let corrected = await runCorrection(text: result.text,

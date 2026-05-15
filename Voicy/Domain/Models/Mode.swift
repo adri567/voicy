@@ -1,8 +1,8 @@
 import Foundation
 
-/// The five Mode types Voicy can run on a transcription before pasting.
+/// The six Mode types Voicy can run on a transcription before pasting.
 nonisolated enum ModeType: String, Codable, Sendable, CaseIterable {
-    case raw, translate, developer, email, custom
+    case raw, translate, developer, email, snippets, custom
 
     var label: String {
         switch self {
@@ -10,6 +10,7 @@ nonisolated enum ModeType: String, Codable, Sendable, CaseIterable {
         case .translate: return "Translate"
         case .developer: return "Developer"
         case .email:     return "Email"
+        case .snippets:  return "Snippets"
         case .custom:    return "Custom"
         }
     }
@@ -20,6 +21,7 @@ nonisolated enum ModeType: String, Codable, Sendable, CaseIterable {
         case .translate: return "⇄"
         case .developer: return "{ }"
         case .email:     return "✉"
+        case .snippets:  return "❖"
         case .custom:    return "✱"
         }
     }
@@ -30,6 +32,7 @@ nonisolated enum ModeType: String, Codable, Sendable, CaseIterable {
         case .translate: return "Translation"
         case .developer: return "AI rewrite"
         case .email:     return "AI rewrite"
+        case .snippets:  return "Text replacement"
         case .custom:    return "Custom prompt"
         }
     }
@@ -44,6 +47,8 @@ nonisolated enum ModeType: String, Codable, Sendable, CaseIterable {
             return "Rewrite as concise technical English — commits, comments, dev chat."
         case .email:
             return "Rewrite as a polite, well-structured email body."
+        case .snippets:
+            return "Spot your snippet phrases in the transcription and replace them with the saved text. Deterministic — no LLM involved."
         case .custom:
             return "Your own system prompt. Name it, give it an icon."
         }
@@ -84,7 +89,7 @@ extension Mode {
     /// Display title for the slot card / editor header.
     func title(source: AppLanguage) -> String {
         switch type {
-        case .raw, .developer, .email:
+        case .raw, .developer, .email, .snippets:
             return type.label
         case .translate:
             let target = LanguageCatalog.language(for: targetCode ?? "en")
@@ -97,7 +102,7 @@ extension Mode {
 
     /// Emoji to use as the slot's visual glyph when one is available. Falls
     /// back to nil for types that should render their `ModeType.glyph`
-    /// character instead (Raw, Developer, Email).
+    /// character instead (Raw, Developer, Email, Snippets).
     var displayEmoji: String? {
         switch type {
         case .translate:
@@ -105,7 +110,7 @@ extension Mode {
         case .custom:
             let trimmed = emoji?.trimmingCharacters(in: .whitespaces) ?? ""
             return trimmed.isEmpty ? "✱" : trimmed
-        case .raw, .developer, .email:
+        case .raw, .developer, .email, .snippets:
             return nil
         }
     }

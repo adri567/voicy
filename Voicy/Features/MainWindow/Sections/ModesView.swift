@@ -17,6 +17,7 @@ private enum ModesSample {
     Thanks,
     """
     static let customFallback = "hey — can we move the mtg to next wk? smth came up today 🙏"
+    static let snippetsSample = "Können wir das Meeting auf nächste Woche verschieben? Mir ist heute etwas dazwischen gekommen. Beste Grüße, Adrian"
 
     static func translate(target: String) -> String {
         switch target {
@@ -40,6 +41,7 @@ private enum ModesSample {
         case .translate: return translate(target: mode.targetCode ?? "en")
         case .developer: return developer
         case .email:     return email
+        case .snippets:  return snippetsSample
         case .custom:    return customFallback
         }
     }
@@ -166,27 +168,28 @@ private extension ModesView {
             .padding(.bottom, 20)
 
             VStack(spacing: 18) {
-                HStack(alignment: .top, spacing: 10) {
-                    ForEach(Array(cycle.modes.enumerated()), id: \.element.id) { idx, mode in
-                        ModeSlotCard(
-                            mode: mode,
-                            index: idx,
-                            isActive: mode.id == activeMode.id,
-                            sourceLanguage: cycle.sourceLanguage
-                        ) {
-                            activeID = mode.id
-                            cycle.setStep(idx)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 10) {
+                        ForEach(Array(cycle.modes.enumerated()), id: \.element.id) { idx, mode in
+                            ModeSlotCard(
+                                mode: mode,
+                                index: idx,
+                                isActive: mode.id == activeMode.id,
+                                sourceLanguage: cycle.sourceLanguage
+                            ) {
+                                activeID = mode.id
+                                cycle.setStep(idx)
+                            }
+                        }
+
+                        AddSlotButton(disabled: cycle.modes.count >= ModeCycleService.maxSlots) {
+                            if let new = cycle.addMode() {
+                                activeID = new.id
+                                cycle.setStep(cycle.modes.count - 1)
+                            }
                         }
                     }
-
-                    AddSlotButton(disabled: cycle.modes.count >= ModeCycleService.maxSlots) {
-                        if let new = cycle.addMode() {
-                            activeID = new.id
-                            cycle.setStep(cycle.modes.count - 1)
-                        }
-                    }
-
-                    Spacer(minLength: 0)
+                    .padding(.vertical, 2)
                 }
 
                 SoftDivider()
@@ -586,7 +589,7 @@ private struct SlotEditor: View {
             if (slot.name ?? "").trimmingCharacters(in: .whitespaces).isEmpty { slot.name = "New mode" }
             if (slot.emoji ?? "").trimmingCharacters(in: .whitespaces).isEmpty { slot.emoji = "✨" }
             if (slot.prompt ?? "").isEmpty { slot.prompt = "Rewrite the transcription as …" }
-        case .raw, .developer, .email:
+        case .raw, .developer, .email, .snippets:
             break
         }
     }
@@ -629,6 +632,12 @@ private struct SlotEditor: View {
             EmptyParams(
                 title: "Polite and structured.",
                 body: "Adds a greeting matched to context, splits long thoughts into paragraphs, closes with a sign-off."
+            )
+
+        case .snippets:
+            EmptyParams(
+                title: "Manage snippets in the Snippets section.",
+                body: "When this mode is active, Voicy scans your transcription for every snippet trigger you've defined and pastes the replacement text in their place. No AI involved."
             )
 
         case .custom:

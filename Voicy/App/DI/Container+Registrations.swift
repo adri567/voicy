@@ -25,7 +25,7 @@ extension Container {
     var modelContainer: Factory<ModelContainer> {
         Factory(self) {
             do {
-                return try ModelContainer(for: TranscriptionEntry.self)
+                return try ModelContainer(for: TranscriptionEntry.self, Snippet.self)
             } catch {
                 fatalError("Failed to create ModelContainer: \(error)")
             }
@@ -36,6 +36,13 @@ extension Container {
     var transcriptionHistoryService: Factory<any TranscriptionHistoryService> {
         Factory(self) {
             SwiftDataTranscriptionHistoryService(container: Container.shared.modelContainer())
+        }
+        .singleton
+    }
+
+    var snippetService: Factory<any SnippetService> {
+        Factory(self) {
+            DefaultSnippetService(container: Container.shared.modelContainer())
         }
         .singleton
     }

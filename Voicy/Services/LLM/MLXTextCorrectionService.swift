@@ -189,7 +189,7 @@ final class MLXTextCorrectionService: TextCorrectionService {
 
     nonisolated private static func wrappedInput(for mode: Mode, transcript: String) -> String {
         switch mode.type {
-        case .raw:
+        case .raw, .snippets:
             return transcript // unreachable in practice
         case .translate:
             return "<TRANSLATE>\n\(transcript)\n</TRANSLATE>"
@@ -214,7 +214,7 @@ final class MLXTextCorrectionService: TextCorrectionService {
     /// - raw → unused (no LLM call).
     nonisolated private static func outputLanguage(for mode: Mode, source: AppLanguage) -> AppLanguage {
         switch mode.type {
-        case .raw, .developer:
+        case .raw, .developer, .snippets:
             return LanguageCatalog.language(for: "en")
         case .translate:
             return LanguageCatalog.language(for: mode.targetCode ?? "en")
@@ -236,7 +236,7 @@ final class MLXTextCorrectionService: TextCorrectionService {
 
     nonisolated private static func systemPrompt(for mode: Mode, source: AppLanguage) -> String {
         switch mode.type {
-        case .raw:
+        case .raw, .snippets:
             // Unreachable — guarded in `correct`.
             return ""
 
