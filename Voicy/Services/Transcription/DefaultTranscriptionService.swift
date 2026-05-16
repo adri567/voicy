@@ -1,14 +1,14 @@
 import Foundation
 import WhisperKit
 
-final class DefaultTranscriptionService: TranscriptionService {
+actor DefaultTranscriptionService: TranscriptionService {
 
-    nonisolated(unsafe) private var whisperKit: WhisperKit?
+    private var whisperKit: WhisperKit?
     private let recorder = AudioRecorder()
 
-    nonisolated init() {}
+    init() {}
 
-    nonisolated func loadModel() async throws {
+    func loadModel() async throws {
         guard whisperKit == nil else { return }
         // Load-from-cache only. Downloads happen exclusively through
         // installModel(progress:), triggered from EngineView.
@@ -32,12 +32,12 @@ final class DefaultTranscriptionService: TranscriptionService {
 
     nonisolated static let defaultModelID = "openai_whisper-small"
 
-    nonisolated func startRecording() async throws {
+    func startRecording() async throws {
         guard whisperKit != nil else { throw TranscriptionError.modelNotLoaded }
         try recorder.start()
     }
 
-    nonisolated func stopAndTranscribe() async throws -> TranscriptionResult {
+    func stopAndTranscribe() async throws -> TranscriptionResult {
         guard let kit = whisperKit else { throw TranscriptionError.noActiveRecording }
 
         let (samples, duration) = recorder.stop()
@@ -56,7 +56,7 @@ final class DefaultTranscriptionService: TranscriptionService {
         return TranscriptionResult(text: text, duration: duration)
     }
 
-    nonisolated func currentAudioLevel() -> Float {
+    func currentAudioLevel() -> Float {
         recorder.currentLevel()
     }
 
@@ -66,7 +66,7 @@ final class DefaultTranscriptionService: TranscriptionService {
         ModelStorage.exists(at: ModelStorage.whisperKitPath(model: Self.activeModelID))
     }
 
-    nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
+    func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
         if isModelInstalled(), whisperKit != nil {
             progress(1.0)
             return
@@ -81,7 +81,7 @@ final class DefaultTranscriptionService: TranscriptionService {
         progress(1.0)
     }
 
-    nonisolated func removeModel() async throws {
+    func removeModel() async throws {
         whisperKit = nil
         try ModelStorage.remove(at: ModelStorage.whisperKitPath(model: Self.activeModelID))
         print("[WhisperKit] Model removed from disk")
@@ -109,7 +109,7 @@ final class DefaultTranscriptionService: TranscriptionService {
     }
 }
 
-enum TranscriptionError: LocalizedError {
+nonisolated enum TranscriptionError: LocalizedError {
     case modelNotLoaded
     case noActiveRecording
     case audioSetupFailed

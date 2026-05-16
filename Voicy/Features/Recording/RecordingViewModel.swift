@@ -2,7 +2,7 @@ import FactoryKit
 import Foundation
 import Observation
 
-@Observable
+@Observable @MainActor
 final class RecordingViewModel {
 
     enum RecordingState: Equatable {
@@ -157,7 +157,7 @@ final class RecordingViewModel {
         levelTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                let raw = self.service.currentAudioLevel()
+                let raw = await self.service.currentAudioLevel()
                 self.audioLevel = self.audioLevel * 0.7 + raw * 0.3
                 try? await Task.sleep(for: .milliseconds(60))
             }

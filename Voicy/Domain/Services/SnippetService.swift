@@ -19,7 +19,7 @@ protocol SnippetService: Sendable {
 }
 
 /// Sendable snapshot of a Snippet for crossing actor boundaries.
-struct SnippetDTO: Identifiable, Hashable, Sendable {
+nonisolated struct SnippetDTO: Identifiable, Hashable, Sendable {
     let id: UUID
     let triggers: [String]
     let replacement: String
@@ -27,7 +27,7 @@ struct SnippetDTO: Identifiable, Hashable, Sendable {
     let createdAt: Date
 }
 
-enum SnippetError: LocalizedError {
+nonisolated enum SnippetError: LocalizedError {
     case emptyTriggers
     case emptyReplacement
     case notFound

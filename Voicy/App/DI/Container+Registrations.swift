@@ -4,9 +4,11 @@ import SwiftData
 extension Container {
     var transcriptionService: Factory<any TranscriptionService> {
         Factory(self) {
-            switch TranscriptionEngine.current {
-            case .whisper:  DefaultTranscriptionService()
-            case .parakeet: ParakeetTranscriptionService()
+            MainActor.assumeIsolated {
+                switch TranscriptionEngine.current {
+                case .whisper:  DefaultTranscriptionService()
+                case .parakeet: ParakeetTranscriptionService()
+                }
             }
         }
         .singleton
@@ -18,8 +20,10 @@ extension Container {
     }
 
     var textCorrectionService: Factory<any TextCorrectionService> {
-        Factory(self) { MLXTextCorrectionService() }
-            .singleton
+        Factory(self) {
+            MainActor.assumeIsolated { MLXTextCorrectionService() }
+        }
+        .singleton
     }
 
     var modelContainer: Factory<ModelContainer> {

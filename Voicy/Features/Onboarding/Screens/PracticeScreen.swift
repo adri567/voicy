@@ -10,7 +10,7 @@ struct PracticeScreen: View {
         ScreenShell(
             chapter: "06",
             kicker: "Chapter 06 — Trial run",
-            title: AnyView(titleView),
+            title: { titleView },
             lead: nil,
             body: { leftBody },
             leftFooter: { footer },

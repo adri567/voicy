@@ -7,7 +7,7 @@ struct MicrophoneScreen: View {
         ScreenShell(
             chapter: "01",
             kicker: "Chapter 01 — Permission",
-            title: AnyView(titleView),
+            title: { titleView },
             lead: "Voicy needs access to your microphone to listen for dictation. Audio never leaves your Mac — transcription happens entirely on this device.",
             body: { bullets },
             leftFooter: { footer },

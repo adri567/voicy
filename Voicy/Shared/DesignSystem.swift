@@ -7,7 +7,7 @@ import SwiftUI
 // to New York (serif), SF Pro (sans), SF Mono (mono) — visually close but
 // not pixel-identical to the Claude Design mockups.
 
-enum DS {
+nonisolated enum DS {
 
     enum Palette {
         static let paper        = Color(red: 1.00, green: 1.00, blue: 1.00)   // #ffffff
@@ -58,77 +58,9 @@ enum DS {
     }
 }
 
-// MARK: - View modifiers
-
-struct PanelModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .background(DS.Palette.paperCard, in: RoundedRectangle(cornerRadius: DS.Radius.panel))
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.panel)
-                    .stroke(DS.Palette.ruleSoft, lineWidth: 1)
-            )
-    }
-}
-
-struct TagPillModifier: ViewModifier {
-    var solid: Bool = false
-    var accent: Bool = false
-
-    func body(content: Content) -> some View {
-        content
-            .font(DS.Font.mono(10, weight: .regular))
-            .textCase(.uppercase)
-            .tracking(0.8)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .foregroundStyle(textColor)
-            .background(background, in: Capsule())
-            .overlay(Capsule().stroke(borderColor, lineWidth: 1))
-    }
-
-    private var textColor: Color {
-        if accent { return DS.Palette.accentInk }
-        if solid  { return DS.Palette.paper }
-        return DS.Palette.ink2
-    }
-    private var background: Color {
-        if accent { return DS.Palette.accent }
-        if solid  { return DS.Palette.ink }
-        return .clear
-    }
-    private var borderColor: Color {
-        if accent { return DS.Palette.accent }
-        if solid  { return DS.Palette.ink }
-        return DS.Palette.ruleSoft
-    }
-}
-
 extension View {
     func dsPanel() -> some View { modifier(PanelModifier()) }
     func dsTag(solid: Bool = false, accent: Bool = false) -> some View {
         modifier(TagPillModifier(solid: solid, accent: accent))
-    }
-}
-
-// MARK: - Reusable bits
-
-struct MetaLabel: View {
-    let text: String
-    var color: Color = DS.Palette.ink3
-    var body: some View {
-        Text(text)
-            .font(DS.Font.mono(10, weight: .regular))
-            .textCase(.uppercase)
-            .tracking(1.4)
-            .foregroundStyle(color)
-    }
-}
-
-struct SoftDivider: View {
-    var body: some View {
-        Rectangle()
-            .fill(DS.Palette.ruleSoft)
-            .frame(height: 1)
     }
 }

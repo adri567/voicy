@@ -1,14 +1,14 @@
 import Foundation
 import FluidAudio
 
-final class ParakeetTranscriptionService: TranscriptionService {
+actor ParakeetTranscriptionService: TranscriptionService {
 
-    nonisolated(unsafe) private var asrManager: AsrManager?
+    private var asrManager: AsrManager?
     private let recorder = AudioRecorder()
 
-    nonisolated init() {}
+    init() {}
 
-    nonisolated func loadModel() async throws {
+    func loadModel() async throws {
         guard asrManager == nil else { return }
         // Load-from-cache only. Downloads happen exclusively through
         // installModel(progress:), triggered from EngineView.
@@ -37,12 +37,12 @@ final class ParakeetTranscriptionService: TranscriptionService {
     nonisolated static let defaultVersion = "v3"
     nonisolated static let supportedVersions = ["v3"]
 
-    nonisolated func startRecording() async throws {
+    func startRecording() async throws {
         guard asrManager != nil else { throw TranscriptionError.modelNotLoaded }
         try recorder.start()
     }
 
-    nonisolated func stopAndTranscribe() async throws -> TranscriptionResult {
+    func stopAndTranscribe() async throws -> TranscriptionResult {
         guard let manager = asrManager else { throw TranscriptionError.noActiveRecording }
 
         let (samples, duration) = recorder.stop()
@@ -56,7 +56,7 @@ final class ParakeetTranscriptionService: TranscriptionService {
         return TranscriptionResult(text: text, duration: duration)
     }
 
-    nonisolated func currentAudioLevel() -> Float {
+    func currentAudioLevel() -> Float {
         recorder.currentLevel()
     }
 
@@ -66,7 +66,7 @@ final class ParakeetTranscriptionService: TranscriptionService {
         Self.isInstalled(version: Self.activeVersion)
     }
 
-    nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
+    func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
         let v = Self.asrVersion(for: Self.activeVersion)
         if isModelInstalled(), asrManager != nil {
             progress(1.0)
@@ -83,7 +83,7 @@ final class ParakeetTranscriptionService: TranscriptionService {
         print("[Parakeet] Model installed")
     }
 
-    nonisolated func removeModel() async throws {
+    func removeModel() async throws {
         asrManager = nil
         try Self.remove(version: Self.activeVersion)
         print("[Parakeet] Model removed from disk")

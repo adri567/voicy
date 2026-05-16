@@ -5,13 +5,13 @@ import MLXHuggingFace
 import HuggingFace
 import Tokenizers
 
-final class MLXTextCorrectionService: TextCorrectionService {
+actor MLXTextCorrectionService: TextCorrectionService {
 
-    nonisolated(unsafe) private var container: ModelContainer?
+    private var container: ModelContainer?
 
-    nonisolated init() {}
+    init() {}
 
-    nonisolated func loadModel(onProgress: (@Sendable (Double) -> Void)? = nil) async throws {
+    func loadModel(onProgress: (@Sendable (Double) -> Void)? = nil) async throws {
         guard container == nil else { return }
         // Load-from-cache only. Downloads happen exclusively through
         // installModel(progress:), triggered from BrainView.
@@ -24,7 +24,7 @@ final class MLXTextCorrectionService: TextCorrectionService {
         print("[MLX] \(Self.activeRegistryKey) loaded")
     }
 
-    nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
+    func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
         if container != nil, isModelInstalled() {
             progress(1.0)
             return
@@ -35,7 +35,7 @@ final class MLXTextCorrectionService: TextCorrectionService {
         print("[MLX] \(Self.activeRegistryKey) installed")
     }
 
-    private nonisolated func runLoad(onProgress: (@Sendable (Double) -> Void)?) async throws {
+    private func runLoad(onProgress: (@Sendable (Double) -> Void)?) async throws {
         let config = Self.configuration(for: Self.activeRegistryKey)
         container = try await #huggingFaceLoadModelContainer(
             configuration: config,
@@ -68,7 +68,7 @@ final class MLXTextCorrectionService: TextCorrectionService {
         "llama3_1_8B_4bit",
     ]
 
-    nonisolated func correct(
+    func correct(
         _ text: String,
         mode: Mode,
         sourceLanguage: AppLanguage
@@ -107,7 +107,7 @@ final class MLXTextCorrectionService: TextCorrectionService {
         Self.isInstalled(registryKey: Self.activeRegistryKey)
     }
 
-    nonisolated func removeModel() async throws {
+    func removeModel() async throws {
         container = nil
         try Self.remove(registryKey: Self.activeRegistryKey)
         print("[MLX] \(Self.activeRegistryKey) removed from disk")
@@ -339,13 +339,10 @@ final class MLXTextCorrectionService: TextCorrectionService {
     }
 }
 
-enum TextCorrectionError: LocalizedError {
+nonisolated enum TextCorrectionError: LocalizedError {
     case modelNotLoaded
 
     var errorDescription: String? {
         "Korrektur-Modell ist noch nicht geladen."
     }
 }
-
-
-

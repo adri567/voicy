@@ -9,7 +9,7 @@ struct LanguageScreen: View {
         ScreenShell(
             chapter: "05",
             kicker: "Chapter 05 — Tongue",
-            title: AnyView(titleView),
+            title: { titleView },
             lead: "Pick the one you'll dictate in most. Voicy will optimise the engine for it. You can switch later in Settings — and Voicy still understands code-switching mid-sentence.",
             body: { leftBody },
             leftFooter: { footer },

@@ -7,7 +7,7 @@ struct AccessibilityScreen: View {
         ScreenShell(
             chapter: "02",
             kicker: "Chapter 02 — Permission",
-            title: AnyView(titleView),
+            title: { titleView },
             lead: nil,
             body: { leftBody },
             leftFooter: { footer },
