@@ -53,13 +53,14 @@ struct MainWindowView: View {
     @ViewBuilder
     private var detail: some View {
         switch selection {
-        case .home:     HomeView(viewModel: viewModel) { selection = $0 }
-        case .snippets: SnippetsView()
-        case .engine:   EngineView()
-        case .brain:    BrainView()
-        case .modes:    ModesView(cycle: modeCycleService)
-        case .hotkey:   HotkeyView()
-        case .settings: SettingsView(viewModel: viewModel, cycle: modeCycleService)
+        case .home:       HomeView(viewModel: viewModel) { selection = $0 }
+        case .transcribe: TranscribeView()
+        case .snippets:   SnippetsView()
+        case .engine:     EngineView()
+        case .brain:      BrainView()
+        case .modes:      ModesView(cycle: modeCycleService)
+        case .hotkey:     HotkeyView()
+        case .settings:   SettingsView(viewModel: viewModel, cycle: modeCycleService)
         }
     }
 }

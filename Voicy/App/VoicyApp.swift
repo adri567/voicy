@@ -6,6 +6,10 @@ import SwiftUI
 struct VoicyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    init() {
+        HistoryMigration.runIfNeeded(container: Container.shared.modelContainer())
+    }
+
     var body: some Scene {
         MenuBarExtra {
             MenuBarStatusView(viewModel: appDelegate.coordinator.viewModel)

@@ -2,16 +2,33 @@ import FactoryKit
 import SwiftData
 
 extension Container {
+    /// Engine-specific singletons. Used by the Transcribe page so the user can
+    /// pick the file-transcription engine independently of the global mic
+    /// engine. Each is loaded lazily and shared with the mic path when it's
+    /// the active global engine.
+    var whisperTranscriptionService: Factory<DefaultTranscriptionService> {
+        Factory(self) {
+            MainActor.assumeIsolated { DefaultTranscriptionService() }
+        }
+        .singleton
+    }
+
+    var parakeetTranscriptionService: Factory<ParakeetTranscriptionService> {
+        Factory(self) {
+            MainActor.assumeIsolated { ParakeetTranscriptionService() }
+        }
+        .singleton
+    }
+
     var transcriptionService: Factory<any TranscriptionService> {
         Factory(self) {
             MainActor.assumeIsolated {
                 switch TranscriptionEngine.current {
-                case .whisper:  DefaultTranscriptionService()
-                case .parakeet: ParakeetTranscriptionService()
+                case .whisper:  Container.shared.whisperTranscriptionService()
+                case .parakeet: Container.shared.parakeetTranscriptionService()
                 }
             }
         }
-        .singleton
     }
 
     var pasteService: Factory<any PasteService> {
@@ -29,7 +46,11 @@ extension Container {
     var modelContainer: Factory<ModelContainer> {
         Factory(self) {
             do {
-                return try ModelContainer(for: TranscriptionEntry.self, Snippet.self)
+                return try ModelContainer(
+                    for: TranscriptionEntry.self,
+                    FileTranscriptionEntry.self,
+                    Snippet.self
+                )
             } catch {
                 fatalError("Failed to create ModelContainer: \(error)")
             }
@@ -40,6 +61,13 @@ extension Container {
     var transcriptionHistoryService: Factory<any TranscriptionHistoryService> {
         Factory(self) {
             SwiftDataTranscriptionHistoryService(container: Container.shared.modelContainer())
+        }
+        .singleton
+    }
+
+    var fileTranscriptionHistoryService: Factory<any FileTranscriptionHistoryService> {
+        Factory(self) {
+            SwiftDataFileTranscriptionHistoryService(container: Container.shared.modelContainer())
         }
         .singleton
     }

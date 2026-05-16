@@ -56,6 +56,69 @@ actor ParakeetTranscriptionService: TranscriptionService {
         return TranscriptionResult(text: text, duration: duration)
     }
 
+    func transcribeFile(
+        at url: URL,
+        language: String?
+    ) async throws -> TranscriptionResult {
+        if asrManager == nil {
+            try await loadModel()
+        }
+        guard let manager = asrManager else { throw TranscriptionError.modelNotLoaded }
+
+        let lang: Language = language.flatMap { Language(rawValue: $0) } ?? .german
+        var decoderState = TdtDecoderState.make()
+        let result = try await manager.transcribe(url, decoderState: &decoderState, language: lang)
+        let text = result.text.trimmingCharacters(in: .whitespaces)
+
+        let segments = Self.collapseTokensIntoSegments(result.tokenTimings ?? [], fallbackText: text)
+        let duration = result.duration > 0 ? result.duration : (segments.last?.end ?? 0)
+
+        return TranscriptionResult(
+            text: text,
+            duration: duration,
+            segments: segments,
+            detectedLanguage: lang.rawValue
+        )
+    }
+
+    /// Group raw token timings into ~30s display segments. Whisper natively
+    /// returns paragraph-sized segments; Parakeet returns per-token timings
+    /// which would be unreadable. 30s buckets give the transcript-UI a similar
+    /// shape to Whisper output.
+    nonisolated private static func collapseTokensIntoSegments(
+        _ tokens: [TokenTiming],
+        fallbackText: String
+    ) -> [Voicy.TranscriptionSegment] {
+        guard let first = tokens.first else {
+            return [Voicy.TranscriptionSegment(start: 0, end: 0, text: fallbackText)]
+        }
+
+        let bucketDuration: TimeInterval = 30
+        var segments: [Voicy.TranscriptionSegment] = []
+        var bucketStart: TimeInterval = first.startTime
+        var bucketTokens: [TokenTiming] = []
+
+        for token in tokens {
+            if token.startTime - bucketStart >= bucketDuration, !bucketTokens.isEmpty {
+                segments.append(Self.bucketSegment(bucketTokens))
+                bucketTokens = []
+                bucketStart = token.startTime
+            }
+            bucketTokens.append(token)
+        }
+        if !bucketTokens.isEmpty {
+            segments.append(Self.bucketSegment(bucketTokens))
+        }
+        return segments
+    }
+
+    nonisolated private static func bucketSegment(_ tokens: [TokenTiming]) -> Voicy.TranscriptionSegment {
+        let text = tokens.map(\.token).joined().trimmingCharacters(in: .whitespaces)
+        let start = tokens.first?.startTime ?? 0
+        let end = tokens.last?.endTime ?? start
+        return Voicy.TranscriptionSegment(start: start, end: end, text: text)
+    }
+
     func currentAudioLevel() -> Float {
         recorder.currentLevel()
     }

@@ -6,6 +6,16 @@ protocol TranscriptionService: Sendable {
     nonisolated func stopAndTranscribe() async throws -> TranscriptionResult
     nonisolated func currentAudioLevel() async -> Float
 
+    /// Transcribe an audio/video file from disk. Loaded model required.
+    /// - Parameters:
+    ///   - url: File URL (m4a, mp3, wav, mp4, etc.)
+    ///   - language: ISO code (e.g. "de", "en"). `nil` means auto-detect — only
+    ///     supported by WhisperKit. Parakeet falls back to its default.
+    nonisolated func transcribeFile(
+        at url: URL,
+        language: String?
+    ) async throws -> TranscriptionResult
+
     // MARK: - Download management
 
     /// True iff the model files exist on disk. Pure disk check — safe to call

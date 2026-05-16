@@ -56,6 +56,42 @@ actor DefaultTranscriptionService: TranscriptionService {
         return TranscriptionResult(text: text, duration: duration)
     }
 
+    func transcribeFile(
+        at url: URL,
+        language: String?
+    ) async throws -> TranscriptionResult {
+        if whisperKit == nil {
+            try await loadModel()
+        }
+        guard let kit = whisperKit else { throw TranscriptionError.modelNotLoaded }
+
+        let options = DecodingOptions(
+            task: .transcribe,
+            language: language
+        )
+        let results = try await kit.transcribe(audioPath: url.path, decodeOptions: options)
+
+        let text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        let segments: [Voicy.TranscriptionSegment] = results.flatMap { kitResult in
+            kitResult.segments.map { kitSeg in
+                Voicy.TranscriptionSegment(
+                    start: TimeInterval(kitSeg.start),
+                    end: TimeInterval(kitSeg.end),
+                    text: kitSeg.text.trimmingCharacters(in: .whitespaces)
+                )
+            }
+        }
+        let duration = segments.last?.end ?? 0
+        let detected = results.first?.language
+
+        return TranscriptionResult(
+            text: text,
+            duration: duration,
+            segments: segments,
+            detectedLanguage: detected
+        )
+    }
+
     func currentAudioLevel() -> Float {
         recorder.currentLevel()
     }
