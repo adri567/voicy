@@ -8,4 +8,6 @@ protocol TranscriptionHistoryService: Sendable {
         corrected: Bool,
         target: TargetAppSnapshot?
     ) async throws
+
+    nonisolated func deleteAll() async throws
 }

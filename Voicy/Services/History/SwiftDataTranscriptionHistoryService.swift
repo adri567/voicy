@@ -28,4 +28,10 @@ final class SwiftDataTranscriptionHistoryService: TranscriptionHistoryService {
         context.insert(entry)
         try context.save()
     }
+
+    nonisolated func deleteAll() async throws {
+        let context = ModelContext(container)
+        try context.delete(model: TranscriptionEntry.self)
+        try context.save()
+    }
 }

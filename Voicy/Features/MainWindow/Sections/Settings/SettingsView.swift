@@ -1,3 +1,4 @@
+import FactoryKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -16,6 +17,12 @@ struct SettingsView: View {
     @State private var sensitivity: Double = 60
     @State private var device = "MacBook Pro Microphone"
 
+    @State private var showingClearMicConfirmation = false
+    @State private var showingClearFileConfirmation = false
+
+    @Injected(\.transcriptionHistoryService) private var micHistoryService
+    @Injected(\.fileTranscriptionHistoryService) private var fileHistoryService
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -30,6 +37,38 @@ struct SettingsView: View {
                 sections
                     .padding(.horizontal, DS.Spacing.pageHPadding)
                     .padding(.bottom, 56)
+            }
+        }
+        .alert("Home-Historie löschen?", isPresented: $showingClearMicConfirmation) {
+            Button("Abbrechen", role: .cancel) {}
+            Button("Löschen", role: .destructive) { clearMicHistory() }
+        } message: {
+            Text("Alle Mic-Aufnahmen werden unwiderruflich aus der Home-Historie entfernt.")
+        }
+        .alert("Transcribe-Historie löschen?", isPresented: $showingClearFileConfirmation) {
+            Button("Abbrechen", role: .cancel) {}
+            Button("Löschen", role: .destructive) { clearFileHistory() }
+        } message: {
+            Text("Alle Datei-Transkriptionen werden unwiderruflich aus der Transcribe-Historie entfernt.")
+        }
+    }
+
+    private func clearMicHistory() {
+        Task { [micHistoryService] in
+            do {
+                try await micHistoryService.deleteAll()
+            } catch {
+                print("[Settings] Mic history deleteAll failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func clearFileHistory() {
+        Task { [fileHistoryService] in
+            do {
+                try await fileHistoryService.deleteAll()
+            } catch {
+                print("[Settings] File history deleteAll failed: \(error.localizedDescription)")
             }
         }
     }
@@ -154,7 +193,16 @@ struct SettingsView: View {
                                   desc: "Help improve Voicy by sending non-identifying interaction stats. No audio, ever.",
                                   value: $usage,
                                   isMock: true)   // TODO(usage-stats)
-                SettingsDangerButtonRow(label: "Delete all transcripts", isMock: true)   // TODO(history-clear)
+                SettingsDangerButtonRow(
+                    label: "Home-Historie löschen",
+                    description: "Entfernt alle Mic-Aufnahmen aus der Home-Historie.",
+                    action: { showingClearMicConfirmation = true }
+                )
+                SettingsDangerButtonRow(
+                    label: "Transcribe-Historie löschen",
+                    description: "Entfernt alle Datei-Transkriptionen aus der Transcribe-Historie.",
+                    action: { showingClearFileConfirmation = true }
+                )
             }
 
             SettingsSection(title: "Updates", caption: "When Voicy looks for new builds") {

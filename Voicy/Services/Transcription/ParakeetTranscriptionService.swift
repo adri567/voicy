@@ -81,10 +81,16 @@ actor ParakeetTranscriptionService: TranscriptionService {
         )
     }
 
-    /// Group raw token timings into ~30s display segments. Whisper natively
-    /// returns paragraph-sized segments; Parakeet returns per-token timings
-    /// which would be unreadable. 30s buckets give the transcript-UI a similar
-    /// shape to Whisper output.
+    /// Group raw token timings into readable display segments. Parakeet returns
+    /// per-token timings without sentence boundaries, so we approximate them:
+    ///   - split when the last token in the bucket ends with sentence-ending
+    ///     punctuation (`.`, `!`, `?`) — natural sentence break
+    ///   - split when the gap to the next token exceeds `pauseGap` — the speaker
+    ///     drew breath
+    ///   - force-split when the bucket has grown beyond `maxBucketDuration` —
+    ///     keeps very long monotonic stretches from becoming a single block
+    /// A short `minBucketDuration` floor prevents hyper-fragmentation when the
+    /// speaker is using lots of micro-pauses or every token has a comma.
     nonisolated private static func collapseTokensIntoSegments(
         _ tokens: [TokenTiming],
         fallbackText: String
@@ -93,23 +99,43 @@ actor ParakeetTranscriptionService: TranscriptionService {
             return [Voicy.TranscriptionSegment(start: 0, end: 0, text: fallbackText)]
         }
 
-        let bucketDuration: TimeInterval = 30
-        var segments: [Voicy.TranscriptionSegment] = []
-        var bucketStart: TimeInterval = first.startTime
-        var bucketTokens: [TokenTiming] = []
+        let maxBucketDuration: TimeInterval = 25
+        let minBucketDuration: TimeInterval = 3
+        let pauseGap: TimeInterval = 0.8
+        let sentenceEnders: Set<Character> = [".", "!", "?"]
 
-        for token in tokens {
-            if token.startTime - bucketStart >= bucketDuration, !bucketTokens.isEmpty {
+        var segments: [Voicy.TranscriptionSegment] = []
+        var bucketTokens: [TokenTiming] = []
+        var bucketStart: TimeInterval = first.startTime
+
+        for (index, token) in tokens.enumerated() {
+            bucketTokens.append(token)
+
+            guard index + 1 < tokens.count else { continue }
+            let next = tokens[index + 1]
+            let bucketDuration = next.startTime - bucketStart
+            let pause = next.startTime - token.endTime
+            let trimmed = token.token.trimmingCharacters(in: .whitespacesAndNewlines)
+            let endsSentence = trimmed.last.map { sentenceEnders.contains($0) } ?? false
+
+            let shouldSplit =
+                bucketDuration >= maxBucketDuration ||
+                (bucketDuration >= minBucketDuration && (endsSentence || pause >= pauseGap))
+
+            if shouldSplit {
                 segments.append(Self.bucketSegment(bucketTokens))
                 bucketTokens = []
-                bucketStart = token.startTime
+                bucketStart = next.startTime
             }
-            bucketTokens.append(token)
         }
+
         if !bucketTokens.isEmpty {
             segments.append(Self.bucketSegment(bucketTokens))
         }
-        return segments
+
+        return segments.isEmpty
+            ? [Voicy.TranscriptionSegment(start: first.startTime, end: tokens.last?.endTime ?? 0, text: fallbackText)]
+            : segments
     }
 
     nonisolated private static func bucketSegment(_ tokens: [TokenTiming]) -> Voicy.TranscriptionSegment {

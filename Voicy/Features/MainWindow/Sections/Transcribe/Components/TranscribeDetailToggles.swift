@@ -1,13 +1,17 @@
 import SwiftUI
 
 struct TranscribeDetailToggles: View {
+    @Binding var continuous: Bool
     @Binding var showTime: Bool
     @Binding var showPunctuation: Bool
 
     var body: some View {
         HStack(spacing: 16) {
+            chip(label: "Continuous text", isOn: continuous, disabled: false, badge: nil) {
+                continuous.toggle()
+            }
             chip(label: "Speaker labels", isOn: false, disabled: true, badge: "Phase 3", action: {})
-            chip(label: "Timestamps", isOn: showTime, disabled: false, badge: nil) {
+            chip(label: "Timestamps", isOn: showTime, disabled: continuous, badge: nil) {
                 showTime.toggle()
             }
             chip(label: "Smart punctuation", isOn: showPunctuation, disabled: false, badge: nil) {

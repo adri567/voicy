@@ -1,9 +1,13 @@
+import AppKit
 import SwiftUI
 
 struct TranscribeHistoryRow: View {
     let entry: FileTranscriptionEntry
     let isFirst: Bool
     let onOpen: () -> Void
+
+    @State private var copied = false
+    @State private var copyResetTask: Task<Void, Never>?
 
     private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -23,19 +27,53 @@ struct TranscribeHistoryRow: View {
             if !isFirst {
                 SoftDivider()
             }
-            Button(action: onOpen) {
-                HStack(alignment: .top, spacing: 28) {
-                    leftColumn
-                        .frame(width: 140, alignment: .leading)
-                    middleColumn
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    rightColumn
-                        .frame(width: 110, alignment: .trailing)
-                }
-                .padding(.vertical, 20)
-                .contentShape(Rectangle())
+            HStack(alignment: .top, spacing: 28) {
+                leftColumn
+                    .frame(width: 140, alignment: .leading)
+                middleColumn
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                rightColumn
+                    .frame(width: 110, alignment: .trailing)
             }
-            .buttonStyle(.plain)
+            .padding(.vertical, 20)
+            .contentShape(Rectangle())
+            .overlay(alignment: .topTrailing) {
+                if copied {
+                    Text("Kopiert")
+                        .font(DS.Font.mono(9, weight: .medium))
+                        .textCase(.uppercase)
+                        .tracking(1.2)
+                        .foregroundStyle(DS.Palette.accent)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(DS.Palette.accent.opacity(0.12), in: Capsule())
+                        .padding(.top, 16)
+                        .transition(.opacity)
+                }
+            }
+            .gesture(
+                TapGesture(count: 2)
+                    .onEnded { copyText() }
+                    .exclusively(before:
+                        TapGesture(count: 1).onEnded { onOpen() }
+                    )
+            )
+            .contextMenu {
+                Button("Vollständigen Text kopieren") { copyText() }
+                Button("Detail öffnen") { onOpen() }
+            }
+        }
+    }
+
+    private func copyText() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(entry.fullText, forType: .string)
+        withAnimation(.easeOut(duration: 0.15)) { copied = true }
+        copyResetTask?.cancel()
+        copyResetTask = Task {
+            try? await Task.sleep(for: .milliseconds(1200))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeIn(duration: 0.2)) { copied = false }
         }
     }
 

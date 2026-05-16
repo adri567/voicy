@@ -10,6 +10,7 @@ struct TranscribeDetailView: View {
     let entry: FileTranscriptionEntry
     let onBack: () -> Void
 
+    @State private var continuous = true
     @State private var showTime = true
     @State private var showPunctuation = true
     @State private var copied = false
@@ -23,6 +24,7 @@ struct TranscribeDetailView: View {
                 fileHeader
                     .padding(.bottom, 22)
                 TranscribeDetailToggles(
+                    continuous: $continuous,
                     showTime: $showTime,
                     showPunctuation: $showPunctuation
                 )
@@ -107,6 +109,15 @@ struct TranscribeDetailView: View {
 
     @ViewBuilder
     private var transcriptPanel: some View {
+        if continuous {
+            continuousPanel
+        } else {
+            segmentsPanel
+        }
+    }
+
+    @ViewBuilder
+    private var segmentsPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(entry.segments.enumerated(), id: \.element.id) { index, segment in
                 TranscribeSegmentRow(
@@ -123,6 +134,35 @@ struct TranscribeDetailView: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .dsPanel()
+    }
+
+    @ViewBuilder
+    private var continuousPanel: some View {
+        Text(continuousText)
+            .font(DS.Font.serif(18))
+            .foregroundStyle(DS.Palette.ink)
+            .lineSpacing(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .multilineTextAlignment(.leading)
+            .textSelection(.enabled)
+            .padding(.horizontal, 30)
+            .padding(.vertical, 26)
+            .dsPanel()
+    }
+
+    private var continuousText: String {
+        // Prefer the aggregated `fullText` over `segments.map(\.text).joined()`.
+        // WhisperKit's `TranscriptionResult.text` is the post-processed
+        // aggregate (casing + punctuation re-applied), while the per-segment
+        // texts are the raw model output and are often lowercase / unpunctuated.
+        let raw = entry.fullText.isEmpty
+            ? entry.segments.map(\.text).joined(separator: " ")
+            : entry.fullText
+        guard !showPunctuation else { return raw }
+        let scalars = raw.lowercased().unicodeScalars.filter { scalar in
+            !CharacterSet(charactersIn: ".,!?;:—").contains(scalar)
+        }
+        return String(String.UnicodeScalarView(scalars))
     }
 
     @ViewBuilder

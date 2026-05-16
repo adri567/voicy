@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct TranscribeSegmentRow: View {
@@ -8,24 +9,42 @@ struct TranscribeSegmentRow: View {
     var currentlyPlaying: Bool = false
     var onJump: () -> Void = {}
 
+    @State private var copied = false
+    @State private var copyResetTask: Task<Void, Never>?
+
     var body: some View {
         VStack(spacing: 0) {
             if !isFirst {
                 SoftDivider()
             }
-            Button(action: onJump) {
-                HStack(alignment: .top, spacing: 24) {
-                    leadingColumn
-                        .frame(width: 110, alignment: .leading)
-                    textColumn
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    wordCountColumn
-                        .frame(width: 60, alignment: .trailing)
-                }
-                .padding(.vertical, 18)
-                .contentShape(Rectangle())
+            HStack(alignment: .top, spacing: 24) {
+                leadingColumn
+                    .frame(width: 110, alignment: .leading)
+                textColumn
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                wordCountColumn
+                    .frame(width: 60, alignment: .trailing)
             }
-            .buttonStyle(.plain)
+            .padding(.vertical, 18)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) { copyText() }
+            .contextMenu {
+                Button("Segment kopieren") { copyText() }
+            }
+            .overlay(alignment: .topTrailing) {
+                if copied {
+                    Text("Kopiert")
+                        .font(DS.Font.mono(9, weight: .medium))
+                        .textCase(.uppercase)
+                        .tracking(1.2)
+                        .foregroundStyle(DS.Palette.accent)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(DS.Palette.accent.opacity(0.12), in: Capsule())
+                        .padding(.top, 10)
+                        .transition(.opacity)
+                }
+            }
         }
         .overlay(alignment: .leading) {
             if currentlyPlaying {
@@ -35,6 +54,18 @@ struct TranscribeSegmentRow: View {
                     .padding(.vertical, 18)
                     .offset(x: -18)
             }
+        }
+    }
+
+    private func copyText() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(segment.text, forType: .string)
+        withAnimation(.easeOut(duration: 0.15)) { copied = true }
+        copyResetTask?.cancel()
+        copyResetTask = Task {
+            try? await Task.sleep(for: .milliseconds(1200))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeIn(duration: 0.2)) { copied = false }
         }
     }
 
@@ -65,6 +96,7 @@ struct TranscribeSegmentRow: View {
             .lineSpacing(5)
             .frame(maxWidth: .infinity, alignment: .leading)
             .multilineTextAlignment(.leading)
+            .textSelection(.enabled)
     }
 
     @ViewBuilder

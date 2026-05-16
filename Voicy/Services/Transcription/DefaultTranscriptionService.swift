@@ -51,7 +51,9 @@ actor DefaultTranscriptionService: TranscriptionService {
             audioArray: samples,
             decodeOptions: DecodingOptions(language: "de")
         )
-        let text = results.compactMap(\.text).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        let text = Self.cleanWhisperOutput(
+            results.compactMap(\.text).joined(separator: " ")
+        )
 
         return TranscriptionResult(text: text, duration: duration)
     }
@@ -71,13 +73,15 @@ actor DefaultTranscriptionService: TranscriptionService {
         )
         let results = try await kit.transcribe(audioPath: url.path, decodeOptions: options)
 
-        let text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        let text = Self.cleanWhisperOutput(
+            results.map(\.text).joined(separator: " ")
+        )
         let segments: [Voicy.TranscriptionSegment] = results.flatMap { kitResult in
             kitResult.segments.map { kitSeg in
                 Voicy.TranscriptionSegment(
                     start: TimeInterval(kitSeg.start),
                     end: TimeInterval(kitSeg.end),
-                    text: kitSeg.text.trimmingCharacters(in: .whitespaces)
+                    text: Self.cleanWhisperOutput(kitSeg.text)
                 )
             }
         }
@@ -90,6 +94,17 @@ actor DefaultTranscriptionService: TranscriptionService {
             segments: segments,
             detectedLanguage: detected
         )
+    }
+
+    /// WhisperKit (especially Large-v3 / Distil variants) sometimes leaks its
+    /// raw control tokens — `<|startoftranscript|>`, `<|de|>`, `<|transcribe|>`,
+    /// `<|0.00|>` timestamps — into the decoded text. Strip every `<|...|>` and
+    /// collapse the resulting whitespace.
+    nonisolated private static func cleanWhisperOutput(_ raw: String) -> String {
+        let stripped = raw.replacing(/<\|[^|>]*\|>/, with: "")
+        return stripped
+            .replacing(/[ \t]+/, with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func currentAudioLevel() -> Float {

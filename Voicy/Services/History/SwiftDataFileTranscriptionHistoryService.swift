@@ -14,4 +14,10 @@ final class SwiftDataFileTranscriptionHistoryService: FileTranscriptionHistorySe
         context.insert(entry)
         try context.save()
     }
+
+    nonisolated func deleteAll() async throws {
+        let context = ModelContext(container)
+        try context.delete(model: FileTranscriptionEntry.self)
+        try context.save()
+    }
 }
