@@ -236,33 +236,28 @@ private struct ToggleRow: View {
     @Binding var value: Bool
     let isMock: Bool
 
-    @Environment(\.isFirstRow) private var isFirstRow
-
     var body: some View {
-        VStack(spacing: 0) {
-            if !isFirstRow { SoftDivider() }
-            HStack(spacing: 18) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(label)
-                            .font(DS.Font.sans(14, weight: .semibold))
-                            .foregroundStyle(DS.Palette.ink)
-                        if isMock { mockBadge }
-                    }
-                    Text(desc)
-                        .font(DS.Font.sans(12))
-                        .lineSpacing(2)
-                        .foregroundStyle(DS.Palette.ink3)
+        HStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(label)
+                        .font(DS.Font.sans(14, weight: .semibold))
+                        .foregroundStyle(DS.Palette.ink)
+                    if isMock { mockBadge }
                 }
-                Spacer()
-                Toggle("", isOn: $value)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .tint(DS.Palette.accent)
-                    .disabled(isMock)
+                Text(desc)
+                    .font(DS.Font.sans(12))
+                    .lineSpacing(2)
+                    .foregroundStyle(DS.Palette.ink3)
             }
-            .padding(.vertical, 18)
+            Spacer()
+            Toggle("", isOn: $value)
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .tint(DS.Palette.accent)
+                .disabled(isMock)
         }
+        .padding(.vertical, 18)
     }
 
     private var mockBadge: some View {
@@ -285,9 +280,51 @@ private struct SelectRow: View {
     let isMock: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            SoftDivider()
-            HStack(spacing: 18) {
+        HStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(label)
+                        .font(DS.Font.sans(14, weight: .semibold))
+                        .foregroundStyle(DS.Palette.ink)
+                    if isMock {
+                        Text("Demo")
+                            .font(DS.Font.mono(8))
+                            .tracking(1)
+                            .textCase(.uppercase)
+                            .foregroundStyle(DS.Palette.ink3)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
+                    }
+                }
+                Text(desc)
+                    .font(DS.Font.sans(12))
+                    .lineSpacing(2)
+                    .foregroundStyle(DS.Palette.ink3)
+            }
+            Spacer()
+            Picker("", selection: $value) {
+                ForEach(options, id: \.self) { Text($0).tag($0) }
+            }
+            .labelsHidden()
+            .frame(minWidth: 220)
+            .disabled(isMock)
+        }
+        .padding(.vertical, 18)
+    }
+}
+
+private struct SliderRow: View {
+    let label: String
+    let desc: String
+    @Binding var value: Double
+    let min: Double
+    let max: Double
+    let suffix: String
+    let isMock: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Text(label)
@@ -309,63 +346,15 @@ private struct SelectRow: View {
                         .foregroundStyle(DS.Palette.ink3)
                 }
                 Spacer()
-                Picker("", selection: $value) {
-                    ForEach(options, id: \.self) { Text($0).tag($0) }
-                }
-                .labelsHidden()
-                .frame(minWidth: 220)
+                Text("\(Int(value))\(suffix)")
+                    .font(DS.Font.mono(13))
+                    .foregroundStyle(DS.Palette.ink2)
+            }
+            Slider(value: $value, in: min...max)
+                .tint(DS.Palette.accent)
                 .disabled(isMock)
-            }
-            .padding(.vertical, 18)
         }
-    }
-}
-
-private struct SliderRow: View {
-    let label: String
-    let desc: String
-    @Binding var value: Double
-    let min: Double
-    let max: Double
-    let suffix: String
-    let isMock: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            SoftDivider()
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Text(label)
-                                .font(DS.Font.sans(14, weight: .semibold))
-                                .foregroundStyle(DS.Palette.ink)
-                            if isMock {
-                                Text("Demo")
-                                    .font(DS.Font.mono(8))
-                                    .tracking(1)
-                                    .textCase(.uppercase)
-                                    .foregroundStyle(DS.Palette.ink3)
-                                    .padding(.horizontal, 6).padding(.vertical, 2)
-                                    .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
-                            }
-                        }
-                        Text(desc)
-                            .font(DS.Font.sans(12))
-                            .lineSpacing(2)
-                            .foregroundStyle(DS.Palette.ink3)
-                    }
-                    Spacer()
-                    Text("\(Int(value))\(suffix)")
-                        .font(DS.Font.mono(13))
-                        .foregroundStyle(DS.Palette.ink2)
-                }
-                Slider(value: $value, in: min...max)
-                    .tint(DS.Palette.accent)
-                    .disabled(isMock)
-            }
-            .padding(.vertical, 18)
-        }
+        .padding(.vertical, 18)
     }
 }
 
@@ -443,39 +432,27 @@ private struct DangerButtonRow: View {
     let isMock: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            SoftDivider()
-            HStack {
-                Button(label) {}
-                    .buttonStyle(.plain)
-                    .font(DS.Font.sans(12, weight: .medium))
-                    .foregroundStyle(Color(red: 0.659, green: 0.200, blue: 0.122))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .overlay(Capsule().stroke(Color(red: 0.659, green: 0.200, blue: 0.122).opacity(0.4), lineWidth: 1))
-                    .disabled(isMock)
-                if isMock {
-                    Text("Demo")
-                        .font(DS.Font.mono(8))
-                        .tracking(1)
-                        .textCase(.uppercase)
-                        .foregroundStyle(DS.Palette.ink3)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
-                }
-                Spacer()
+        HStack {
+            Button(label) {}
+                .buttonStyle(.plain)
+                .font(DS.Font.sans(12, weight: .medium))
+                .foregroundStyle(Color(red: 0.659, green: 0.200, blue: 0.122))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .overlay(Capsule().stroke(Color(red: 0.659, green: 0.200, blue: 0.122).opacity(0.4), lineWidth: 1))
+                .disabled(isMock)
+            if isMock {
+                Text("Demo")
+                    .font(DS.Font.mono(8))
+                    .tracking(1)
+                    .textCase(.uppercase)
+                    .foregroundStyle(DS.Palette.ink3)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
             }
-            .padding(.vertical, 18)
+            Spacer()
         }
-    }
-}
-
-// Helper: first-row detection via preference keys
-private struct FirstRowKey: EnvironmentKey { static let defaultValue: Bool = false }
-private extension EnvironmentValues {
-    var isFirstRow: Bool {
-        get { self[FirstRowKey.self] }
-        set { self[FirstRowKey.self] = newValue }
+        .padding(.vertical, 18)
     }
 }
 
@@ -573,6 +550,8 @@ private struct SourceLanguageGrid: View {
         }
         .padding(8)
         .frame(width: 380)
+        .background(DS.Palette.paper)
+        .preferredColorScheme(.light)
     }
 }
 
@@ -584,35 +563,32 @@ private struct OnboardingResetRow: View {
     @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
-        VStack(spacing: 0) {
-            SoftDivider()
-            HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Replay onboarding")
-                        .font(DS.Font.sans(13, weight: .medium))
-                        .foregroundStyle(DS.Palette.ink)
-                    Text("Clears the completed flag, closes this window, and reopens the first-run tour. Useful for testing.")
-                        .font(DS.Font.sans(11))
-                        .lineSpacing(2)
-                        .foregroundStyle(DS.Palette.ink3)
-                        .frame(maxWidth: 440, alignment: .leading)
-                }
-                Spacer()
-                Button(action: resetOnboarding) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.counterclockwise")
-                        Text("Replay")
-                    }
-                    .font(DS.Font.sans(12, weight: .medium))
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Replay onboarding")
+                    .font(DS.Font.sans(13, weight: .medium))
                     .foregroundStyle(DS.Palette.ink)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
+                Text("Clears the completed flag, closes this window, and reopens the first-run tour. Useful for testing.")
+                    .font(DS.Font.sans(11))
+                    .lineSpacing(2)
+                    .foregroundStyle(DS.Palette.ink3)
+                    .frame(maxWidth: 440, alignment: .leading)
             }
-            .padding(.vertical, 18)
+            Spacer()
+            Button(action: resetOnboarding) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.counterclockwise")
+                    Text("Replay")
+                }
+                .font(DS.Font.sans(12, weight: .medium))
+                .foregroundStyle(DS.Palette.ink)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
         }
+        .padding(.vertical, 18)
     }
 
     private func resetOnboarding() {

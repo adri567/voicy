@@ -135,20 +135,37 @@ struct ModesView: View {
     }
 
     private var instructionParagraph: some View {
-        let fnKbd = Text(" fn ")
-            .font(DS.Font.mono(12, weight: .medium))
-            .foregroundColor(DS.Palette.ink)
-        let arrowLeft = Text(" ← ")
-            .font(DS.Font.mono(12, weight: .medium))
-            .foregroundColor(DS.Palette.ink)
-        let arrowRight = Text(" → ")
-            .font(DS.Font.mono(12, weight: .medium))
-            .foregroundColor(DS.Palette.ink)
-        return Text("A ") + Text("Mode").italic() +
-            Text(" is one way your transcription gets transformed before it lands. Line up ") +
-            Text("four to six").italic().foregroundColor(DS.Palette.ink) +
-            Text(" of them — raw, translated, rewritten as an email, anything — and cycle through with ") +
-            fnKbd + Text("+") + arrowLeft + arrowRight + Text("while dictating.")
+        VStack(alignment: .leading, spacing: 12) {
+            Text(instructionLead)
+                .font(DS.Font.sans(16))
+                .lineSpacing(4)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("Cycle through with")
+                    .font(DS.Font.sans(16))
+                Kbd("fn", highlighted: true)
+                Text("+")
+                    .font(DS.Font.sans(16))
+                Kbd("←")
+                Kbd("→")
+                Text("while dictating.")
+                    .font(DS.Font.sans(16))
+            }
+        }
+    }
+
+    private var instructionLead: AttributedString {
+        var attr = AttributedString("A ")
+        var modeWord = AttributedString("Mode")
+        modeWord.font = .system(.body, design: .serif).italic()
+        modeWord.foregroundColor = DS.Palette.ink
+        attr += modeWord
+        attr += AttributedString(" is one way your transcription gets transformed before it lands. Line up ")
+        var four = AttributedString("four to six")
+        four.font = .system(.body, design: .serif).italic()
+        four.foregroundColor = DS.Palette.ink
+        attr += four
+        attr += AttributedString(" of them — raw, translated, rewritten as an email, anything.")
+        return attr
     }
 }
 
@@ -198,7 +215,7 @@ private extension ModesView {
                     HStack(spacing: 10) {
                         MetaLabel(text: "While recording")
                         HStack(spacing: 4) {
-                            Kbd("fn")
+                            Kbd("fn", highlighted: true)
                             Text("+")
                                 .font(DS.Font.mono(11))
                                 .foregroundStyle(DS.Palette.ink3)
@@ -364,10 +381,8 @@ private struct ModeSlotCard: View {
             Text(emoji)
                 .font(.system(size: 34))
         } else {
-            Text(mode.type.glyph)
-                .font(.system(size: 38,
-                              weight: .medium,
-                              design: mode.type == .developer ? .monospaced : .serif))
+            Image(systemName: mode.type.systemImage)
+                .font(.system(size: 30, weight: .regular))
                 .foregroundStyle(isActive ? DS.Palette.paper : DS.Palette.ink)
         }
     }
@@ -441,10 +456,8 @@ private struct ActiveModeCard: View {
                     if let emoji = mode.displayEmoji {
                         Text(emoji).font(.system(size: 30))
                     } else {
-                        Text(mode.type.glyph)
-                            .font(.system(size: 26,
-                                          weight: .medium,
-                                          design: mode.type == .developer ? .monospaced : .serif))
+                        Image(systemName: mode.type.systemImage)
+                            .font(.system(size: 22, weight: .regular))
                             .foregroundStyle(DS.Palette.paper)
                     }
                 }
@@ -758,8 +771,8 @@ private struct SlotEditor: View {
 private struct LockedRawNotice: View {
     var body: some View {
         HStack(spacing: 10) {
-            Text(ModeType.raw.glyph)
-                .font(.system(size: 18, weight: .medium, design: .serif))
+            Image(systemName: ModeType.raw.systemImage)
+                .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(DS.Palette.ink2)
                 .frame(width: 22, height: 22)
             VStack(alignment: .leading, spacing: 2) {
@@ -787,10 +800,8 @@ private struct TypeRailRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 10) {
-                Text(type.glyph)
-                    .font(.system(size: 16,
-                                  weight: .medium,
-                                  design: type == .developer ? .monospaced : .serif))
+                Image(systemName: type.systemImage)
+                    .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(isOn ? DS.Palette.paper : DS.Palette.ink2)
                     .frame(width: 22, height: 22, alignment: .center)
                 Text(type.label)
@@ -1015,10 +1026,8 @@ private struct SampleRow: View {
             if let emoji = mode.displayEmoji {
                 Text(emoji).font(.system(size: 16))
             } else {
-                Text(mode.type.glyph)
-                    .font(.system(size: 11,
-                                  weight: .medium,
-                                  design: mode.type == .developer ? .monospaced : .serif))
+                Image(systemName: mode.type.systemImage)
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(isActive ? DS.Palette.paper : DS.Palette.ink)
             }
         }
@@ -1026,18 +1035,3 @@ private struct SampleRow: View {
     }
 }
 
-// MARK: - Tiny keycap
-
-private struct Kbd: View {
-    let label: String
-    init(_ label: String) { self.label = label }
-    var body: some View {
-        Text(label)
-            .font(DS.Font.mono(10, weight: .medium))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(DS.Palette.paper, in: RoundedRectangle(cornerRadius: DS.Radius.kbd))
-            .overlay(RoundedRectangle(cornerRadius: DS.Radius.kbd).stroke(DS.Palette.ruleSoft, lineWidth: 1))
-            .foregroundStyle(DS.Palette.ink)
-    }
-}

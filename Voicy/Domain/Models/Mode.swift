@@ -15,14 +15,16 @@ nonisolated enum ModeType: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    var glyph: String {
+    /// SF Symbol name for this mode type, used everywhere the mode is
+    /// rendered as an icon (slot card, type-picker, recording overlay, …).
+    var systemImage: String {
         switch self {
-        case .raw:       return "∅"
-        case .translate: return "⇄"
-        case .developer: return "{ }"
-        case .email:     return "✉"
-        case .snippets:  return "❖"
-        case .custom:    return "✱"
+        case .raw:       return "text.alignleft"
+        case .translate: return "arrow.left.arrow.right"
+        case .developer: return "chevron.left.forwardslash.chevron.right"
+        case .email:     return "envelope"
+        case .snippets:  return "text.badge.plus"
+        case .custom:    return "wand.and.stars"
         }
     }
 

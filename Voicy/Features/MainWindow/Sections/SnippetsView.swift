@@ -252,6 +252,7 @@ private struct SnippetRow: View {
                         .foregroundStyle(DS.Palette.ink)
                         .frame(width: 28, height: 28)
                         .overlay(Circle().stroke(DS.Palette.ink, lineWidth: 1))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .help(snippet.enabled ? "Disable" : "Enable")
@@ -262,6 +263,7 @@ private struct SnippetRow: View {
                         .foregroundStyle(DS.Palette.ink)
                         .frame(width: 28, height: 28)
                         .overlay(Circle().stroke(DS.Palette.ink, lineWidth: 1))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .help("Edit")
@@ -272,6 +274,7 @@ private struct SnippetRow: View {
                         .foregroundStyle(DS.Palette.accent)
                         .frame(width: 28, height: 28)
                         .overlay(Circle().stroke(DS.Palette.accent.opacity(0.5), lineWidth: 1))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .help("Delete")
@@ -341,6 +344,7 @@ private struct SnippetEditor: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
+                    .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }
@@ -367,13 +371,16 @@ private struct SnippetEditor: View {
             .padding(.bottom, 24)
 
             HStack {
-                Button("Cancel") { onCancel() }
-                    .buttonStyle(.plain)
-                    .font(DS.Font.sans(13, weight: .medium))
-                    .foregroundStyle(DS.Palette.ink)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .overlay(Capsule().stroke(DS.Palette.ink, lineWidth: 1))
+                Button(action: { onCancel() }) {
+                    Text("Cancel")
+                        .font(DS.Font.sans(13, weight: .medium))
+                        .foregroundStyle(DS.Palette.ink)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .overlay(Capsule().stroke(DS.Palette.ink, lineWidth: 1))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
 
                 Spacer()
 
@@ -384,6 +391,7 @@ private struct SnippetEditor: View {
                         .padding(.horizontal, 22)
                         .padding(.vertical, 10)
                         .background(canSave ? DS.Palette.ink : DS.Palette.ink3, in: Capsule())
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSave)
@@ -415,6 +423,7 @@ private struct SnippetEditor: View {
                         .foregroundStyle(DS.Palette.ink2)
                         .frame(width: 28, height: 28)
                         .overlay(Circle().stroke(DS.Palette.ruleSoft, lineWidth: 1))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
             }

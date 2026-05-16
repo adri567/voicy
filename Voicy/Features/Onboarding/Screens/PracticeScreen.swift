@@ -31,17 +31,22 @@ struct PracticeScreen: View {
 
     private var leftBody: some View {
         VStack(alignment: .leading, spacing: 22) {
-            (Text("Place your cursor anywhere on the right and hold ")
-                .font(DS.Font.sans(16))
-                .foregroundStyle(DS.Palette.ink2)
-             + Text("fn")
-                .font(DS.Font.mono(13, weight: .medium))
-                .foregroundStyle(DS.Palette.ink)
-             + Text(". Speak naturally — punctuation and casing are inferred from your tone. Release to paste.")
-                .font(DS.Font.sans(16))
-                .foregroundStyle(DS.Palette.ink2))
-            .lineSpacing(4)
-            .frame(maxWidth: 460, alignment: .leading)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("Place your cursor on the right and hold")
+                        .font(DS.Font.sans(16))
+                        .foregroundStyle(DS.Palette.ink2)
+                    Kbd("fn", highlighted: true)
+                    Text(".")
+                        .font(DS.Font.sans(16))
+                        .foregroundStyle(DS.Palette.ink2)
+                }
+                Text("Speak naturally — punctuation and casing are inferred from your tone. Release to paste.")
+                    .font(DS.Font.sans(16))
+                    .lineSpacing(4)
+                    .foregroundStyle(DS.Palette.ink2)
+                    .frame(maxWidth: 460, alignment: .leading)
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 MetaLabel(text: "Try this — or anything else")

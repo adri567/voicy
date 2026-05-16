@@ -122,10 +122,10 @@ private struct CycleBadge: View {
                 Text(emoji)
                     .font(.system(size: 11))
             } else {
-                // Raw / Developer / Email — render the type's glyph instead of
-                // a flag/emoji. Sized to match the emoji bounds.
-                Text(mode.type.glyph)
-                    .font(.system(size: 10, weight: .medium, design: mode.type == .developer ? .monospaced : .serif))
+                // Raw / Developer / Email / Snippets — render the type's SF
+                // Symbol instead of a flag/emoji. Sized to match the emoji bounds.
+                Image(systemName: mode.type.systemImage)
+                    .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(.white)
             }
         }

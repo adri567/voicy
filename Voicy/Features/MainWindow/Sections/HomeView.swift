@@ -82,12 +82,23 @@ struct HomeView: View {
                 .foregroundStyle(DS.Palette.ink)
                 .padding(.bottom, 18)
 
-            Text("Halte \(Text("Fn").font(DS.Font.mono(13, weight: .medium))) gedrückt und sprich. Beim Loslassen erscheint der Text dort, wo dein Cursor steht.")
-                .font(DS.Font.sans(16))
-                .lineSpacing(4)
-                .foregroundStyle(DS.Palette.ink2)
-                .padding(.bottom, 28)
-                .frame(maxWidth: 520, alignment: .leading)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("Hold")
+                        .font(DS.Font.sans(16))
+                        .foregroundStyle(DS.Palette.ink2)
+                    Kbd("Fn", highlighted: true)
+                    Text("and start talking.")
+                        .font(DS.Font.sans(16))
+                        .foregroundStyle(DS.Palette.ink2)
+                }
+                Text("When you let go, your words land wherever the cursor is.")
+                    .font(DS.Font.sans(16))
+                    .lineSpacing(4)
+                    .foregroundStyle(DS.Palette.ink2)
+                    .frame(maxWidth: 520, alignment: .leading)
+            }
+            .padding(.bottom, 28)
 
             // Action row
             HStack(spacing: 14) {
@@ -118,6 +129,7 @@ struct HomeView: View {
                 .overlay(
                     Capsule().stroke(DS.Palette.ink, lineWidth: filled ? 0 : 1)
                 )
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
     }
@@ -141,7 +153,7 @@ struct HomeView: View {
 
             let dests = topDestinations
             if dests.isEmpty {
-                Text("Noch keine Ziel-Apps erfasst")
+                Text("No target apps yet")
                     .font(DS.Font.sans(11))
                     .foregroundStyle(DS.Palette.ink3)
             } else {
@@ -189,7 +201,7 @@ struct HomeView: View {
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
-                Text("The \(Text("Verlauf").italic().foregroundColor(DS.Palette.ink)) — a record of every word")
+                Text("The \(Text("history").italic().foregroundColor(DS.Palette.ink)) — a record of every word")
                     .font(DS.Font.serif(26))
                     .tracking(-0.3)
                     .foregroundStyle(DS.Palette.ink2)
@@ -221,9 +233,15 @@ struct HomeView: View {
             Image(systemName: "waveform")
                 .font(.system(size: 36, weight: .light))
                 .foregroundStyle(DS.Palette.ink3)
-            Text("No transcripts yet — press \(Text("Fn").font(DS.Font.mono(13, weight: .medium))) to start.")
-                .font(DS.Font.sans(14))
-                .foregroundStyle(DS.Palette.ink3)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("No transcripts yet — press")
+                    .font(DS.Font.sans(14))
+                    .foregroundStyle(DS.Palette.ink3)
+                Kbd("Fn", highlighted: true)
+                Text("to start.")
+                    .font(DS.Font.sans(14))
+                    .foregroundStyle(DS.Palette.ink3)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
@@ -416,6 +434,7 @@ private struct FilterChips: View {
                         .padding(.vertical, 6)
                         .background(active == filter ? DS.Palette.ink : Color.clear, in: Capsule())
                         .overlay(Capsule().stroke(active == filter ? DS.Palette.ink : DS.Palette.ruleSoft, lineWidth: 1))
+                        .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
             }

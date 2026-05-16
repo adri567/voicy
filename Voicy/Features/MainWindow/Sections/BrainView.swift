@@ -399,6 +399,7 @@ private struct FilterChip: View {
                 .overlay(
                     Capsule().stroke(isActive ? DS.Palette.ink : DS.Palette.ruleSoft, lineWidth: 1)
                 )
+                .contentShape(Capsule())
         }
         .buttonStyle(.plain)
     }
