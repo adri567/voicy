@@ -39,17 +39,17 @@ struct SettingsView: View {
                     .padding(.bottom, 56)
             }
         }
-        .alert("Home-Historie löschen?", isPresented: $showingClearMicConfirmation) {
-            Button("Abbrechen", role: .cancel) {}
-            Button("Löschen", role: .destructive) { clearMicHistory() }
+        .alert("Clear Home history?", isPresented: $showingClearMicConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) { clearMicHistory() }
         } message: {
-            Text("Alle Mic-Aufnahmen werden unwiderruflich aus der Home-Historie entfernt.")
+            Text("All mic recordings will be permanently removed from Home history.")
         }
-        .alert("Transcribe-Historie löschen?", isPresented: $showingClearFileConfirmation) {
-            Button("Abbrechen", role: .cancel) {}
-            Button("Löschen", role: .destructive) { clearFileHistory() }
+        .alert("Clear Transcribe history?", isPresented: $showingClearFileConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) { clearFileHistory() }
         } message: {
-            Text("Alle Datei-Transkriptionen werden unwiderruflich aus der Transcribe-Historie entfernt.")
+            Text("All file transcriptions will be permanently removed from Transcribe history.")
         }
     }
 
@@ -171,8 +171,8 @@ struct SettingsView: View {
             }
 
             SettingsSection(title: "Transcription", caption: "Defaults the engine uses") {
-                SettingsToggleRow(label: "Transkript-Popup nach Aufnahme",
-                                  desc: "Zeigt das Ergebnis kurz als Popup über der Menüleiste an.",
+                SettingsToggleRow(label: "Transcript popup after recording",
+                                  desc: "Briefly shows the result as a popup above the menu bar.",
                                   value: Binding(
                                     get: { viewModel.showTranscript },
                                     set: { _ in viewModel.toggleShowTranscript() }
@@ -194,13 +194,13 @@ struct SettingsView: View {
                                   value: $usage,
                                   isMock: true)   // TODO(usage-stats)
                 SettingsDangerButtonRow(
-                    label: "Home-Historie löschen",
-                    description: "Entfernt alle Mic-Aufnahmen aus der Home-Historie.",
+                    label: "Clear Home history",
+                    description: "Removes all mic recordings from Home history.",
                     action: { showingClearMicConfirmation = true }
                 )
                 SettingsDangerButtonRow(
-                    label: "Transcribe-Historie löschen",
-                    description: "Entfernt alle Datei-Transkriptionen aus der Transcribe-Historie.",
+                    label: "Clear Transcribe history",
+                    description: "Removes all file transcriptions from Transcribe history.",
                     action: { showingClearFileConfirmation = true }
                 )
             }

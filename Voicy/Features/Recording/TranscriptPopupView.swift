@@ -24,7 +24,7 @@ struct TranscriptPopupView: View {
 
                 Spacer()
 
-                Text("Fn für neue Aufnahme")
+                Text("Fn for new recording")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }

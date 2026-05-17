@@ -17,7 +17,7 @@ enum SidebarSection: String, CaseIterable, Identifiable {
 
     var hint: String {
         switch self {
-        case .home:       "Verlauf"
+        case .home:       "History"
         case .transcribe: "Files"
         case .snippets:   "Shortcuts"
         case .engine:     "Voice models"

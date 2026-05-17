@@ -30,19 +30,6 @@ struct BrainView: View {
             highlight: nil
         ),
         LLMModel(
-            id: "mistral-7b",
-            registryKey: "mistral7B4bit",
-            name: "Mistral 7B Instruct",
-            family: "Mistral · open weights",
-            description: "Lean and fast for its size. Solid multilingual translator with good European-language support. No reasoning overhead — outputs directly.",
-            size: "~4 GB",
-            context: "32k",
-            speed: "Medium",
-            quality: 0.85,
-            location: .local,
-            highlight: nil
-        ),
-        LLMModel(
             id: "qwen2-5-7b",
             registryKey: "qwen2_5_7b",
             name: "Qwen 2.5 7B",
@@ -131,41 +118,41 @@ struct BrainView: View {
         }
         .onAppear { viewModel.refresh(registryKeys: viewModel.localRegistryKeys(from: models)) }
         .alert(
-            "Modell aktivieren?",
+            "Activate model?",
             isPresented: Binding(
                 get: { pendingSetDefault != nil },
                 set: { if !$0 { pendingSetDefault = nil } }
             ),
             presenting: pendingSetDefault
         ) { model in
-            Button("Abbrechen", role: .cancel) { pendingSetDefault = nil }
-            Button("Jetzt neu starten") {
+            Button("Cancel", role: .cancel) { pendingSetDefault = nil }
+            Button("Restart now") {
                 let key = model.registryKey
                 pendingSetDefault = nil
                 if let key { viewModel.setAsDefault(registryKey: key) }
             }
         } message: { model in
-            Text("Voicy wechselt zu \(model.name) und startet neu. Eine laufende Aufnahme geht dabei verloren.")
+            Text("Voicy will switch to \(model.name) and restart. Any active recording will be lost.")
         }
         .alert(
-            "Modell löschen?",
+            "Delete model?",
             isPresented: Binding(
                 get: { pendingRemove != nil },
                 set: { if !$0 { pendingRemove = nil } }
             ),
             presenting: pendingRemove
         ) { model in
-            Button("Abbrechen", role: .cancel) { pendingRemove = nil }
-            Button("Löschen", role: .destructive) {
+            Button("Cancel", role: .cancel) { pendingRemove = nil }
+            Button("Delete", role: .destructive) {
                 let key = model.registryKey
                 pendingRemove = nil
                 if let key { Task { await viewModel.remove(registryKey: key) } }
             }
         } message: { model in
             if let key = model.registryKey, viewModel.statuses[key] == .active {
-                Text("\(model.name) ist aktuell aktiv. Nach dem Löschen kannst du nicht mehr übersetzen, bis du es neu installierst.")
+                Text("\(model.name) is currently active. After deletion, translation won't work until you reinstall it.")
             } else {
-                Text("\(model.name) löschen? Du kannst es jederzeit neu installieren.")
+                Text("Delete \(model.name)? You can reinstall it anytime.")
             }
         }
     }

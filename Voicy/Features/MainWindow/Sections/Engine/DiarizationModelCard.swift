@@ -86,7 +86,7 @@ struct DiarizationModelCard: View {
                 .textCase(.uppercase)
                 .tracking(1.2)
                 .foregroundStyle(DS.Palette.ink2)
-            Text("Erkennt automatisch, welche Person spricht. Läuft parallel zur Transkription. 4 Sprecher-Slots, On-device, ~50 MB.")
+            Text("Automatically detects who's speaking. Runs in parallel with transcription. 4 speaker slots, on-device, ~50 MB.")
                 .font(DS.Font.sans(14))
                 .lineSpacing(2)
                 .foregroundStyle(DS.Palette.ink2)

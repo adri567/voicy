@@ -63,7 +63,6 @@ actor MLXTextCorrectionService: TextCorrectionService {
     nonisolated static let supportedRegistryKeys = [
         "gemma4_e2b_it_4bit",
         "gemma4_e4b_it_4bit",
-        "mistral7B4bit",
         "qwen2_5_7b",
         "llama3_1_8B_4bit",
     ]
@@ -167,7 +166,6 @@ actor MLXTextCorrectionService: TextCorrectionService {
         switch registryKey {
         case "gemma4_e2b_it_4bit":  return LLMRegistry.gemma4_e2b_it_4bit
         case "gemma4_e4b_it_4bit":  return LLMRegistry.gemma4_e4b_it_4bit
-        case "mistral7B4bit":       return LLMRegistry.mistral7B4bit
         case "qwen2_5_7b":          return LLMRegistry.qwen2_5_7b
         case "llama3_1_8B_4bit":    return LLMRegistry.llama3_1_8B_4bit
         default:                    return LLMRegistry.gemma4_e2b_it_4bit
@@ -178,7 +176,6 @@ actor MLXTextCorrectionService: TextCorrectionService {
         switch registryKey {
         case "gemma4_e2b_it_4bit": return "mlx-community/gemma-4-e2b-it-4bit"
         case "gemma4_e4b_it_4bit": return "mlx-community/gemma-4-e4b-it-4bit"
-        case "mistral7B4bit":      return "mlx-community/Mistral-7B-Instruct-v0.3-4bit"
         case "qwen2_5_7b":         return "mlx-community/Qwen2.5-7B-Instruct-4bit"
         case "llama3_1_8B_4bit":   return "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit"
         default: return nil
@@ -343,6 +340,6 @@ nonisolated enum TextCorrectionError: LocalizedError {
     case modelNotLoaded
 
     var errorDescription: String? {
-        "Korrektur-Modell ist noch nicht geladen."
+        "Correction model not loaded yet."
     }
 }

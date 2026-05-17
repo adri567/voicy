@@ -29,8 +29,8 @@ struct MenuBarStatusView: View {
             if let progress = viewModel.correctionModelProgress {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(progress > 0
-                         ? String(format: "KI-Modell: %.0f %%", progress * 100)
-                         : "KI-Modell wird geladen…")
+                         ? String(format: "AI model: %.0f %%", progress * 100)
+                         : "Loading AI model…")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     ProgressView(value: progress > 0 ? progress : nil)
@@ -39,7 +39,7 @@ struct MenuBarStatusView: View {
             }
 
             if viewModel.state != .loadingModel {
-                Text("Fn gedrückt halten")
+                Text("Hold Fn")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -52,7 +52,7 @@ struct MenuBarStatusView: View {
             NSApp.activate(ignoringOtherApps: true)
             openWindow(id: MainWindowID.id)
         } label: {
-            Label("Voicy öffnen…", systemImage: "macwindow")
+            Label("Open Voicy…", systemImage: "macwindow")
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 16)
@@ -61,7 +61,7 @@ struct MenuBarStatusView: View {
 
         Divider()
 
-        Button("Beenden") {
+        Button("Quit") {
             NSApp.terminate(nil)
         }
         .buttonStyle(.plain)
@@ -80,11 +80,11 @@ struct MenuBarStatusView: View {
                 Circle()
                     .fill(Color.yellow)
                     .frame(width: 8, height: 8)
-                Text("Onboarding ausstehend")
+                Text("Onboarding pending")
                     .font(.subheadline)
             }
 
-            Text("Schließe das Setup ab, um Voicy zu nutzen.")
+            Text("Finish setup to start using Voicy.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -96,7 +96,7 @@ struct MenuBarStatusView: View {
             NSApp.activate(ignoringOtherApps: true)
             openWindow(id: OnboardingWindowID.id)
         } label: {
-            Label("Onboarding fortsetzen", systemImage: "arrow.right.circle")
+            Label("Resume onboarding", systemImage: "arrow.right.circle")
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 16)
@@ -105,7 +105,7 @@ struct MenuBarStatusView: View {
 
         Divider()
 
-        Button("Beenden") {
+        Button("Quit") {
             NSApp.terminate(nil)
         }
         .buttonStyle(.plain)
@@ -122,22 +122,22 @@ struct MenuBarStatusView: View {
                 ProgressView()
                     .scaleEffect(0.7)
                     .frame(width: 14, height: 14)
-                Text("Modell wird geladen…")
+                Text("Loading model…")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
         case .idle:
-            statusRow(color: .green, label: "Bereit")
+            statusRow(color: .green, label: "Ready")
         case .recording:
-            statusRow(color: .red, label: "Aufnahme läuft…")
+            statusRow(color: .red, label: "Recording…")
         case .transcribing:
-            statusRow(color: .orange, label: "Transkribiere…")
+            statusRow(color: .orange, label: "Transcribing…")
         case .correcting:
-            statusRow(color: .orange, label: "Korrigiere…")
+            statusRow(color: .orange, label: "Polishing…")
         case .noModel:
-            statusRow(color: .yellow, label: "Kein Voice-Modell installiert")
+            statusRow(color: .yellow, label: "No voice model installed")
         case .noBrain:
-            statusRow(color: .yellow, label: "Kein KI-Modell installiert")
+            statusRow(color: .yellow, label: "No AI model installed")
         }
     }
 

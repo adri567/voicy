@@ -18,7 +18,7 @@ nonisolated enum DiarizationError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .modelNotLoaded:
-            return "Diarization-Modell ist noch nicht geladen."
+            return "Diarization model not loaded yet."
         }
     }
 }

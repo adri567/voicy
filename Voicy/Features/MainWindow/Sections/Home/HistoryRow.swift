@@ -57,7 +57,7 @@ struct HistoryRow: View {
             .onTapGesture(count: 2) { copyText() }
             .overlay(alignment: .topTrailing) {
                 if copied {
-                    Text("Kopiert")
+                    Text("Copied")
                         .font(DS.Font.mono(9, weight: .medium))
                         .textCase(.uppercase)
                         .tracking(1.2)

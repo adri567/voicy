@@ -32,21 +32,21 @@ struct SnippetsView: View {
             }
         }
         .alert(
-            "Snippet löschen?",
+            "Delete snippet?",
             isPresented: Binding(
                 get: { pendingDelete != nil },
                 set: { if !$0 { pendingDelete = nil } }
             ),
             presenting: pendingDelete
         ) { snippet in
-            Button("Abbrechen", role: .cancel) { pendingDelete = nil }
-            Button("Löschen", role: .destructive) {
+            Button("Cancel", role: .cancel) { pendingDelete = nil }
+            Button("Delete", role: .destructive) {
                 let id = snippet.id
                 pendingDelete = nil
                 Task { await viewModel.delete(id: id) }
             }
         } message: { snippet in
-            Text("„\(snippet.triggers.first ?? "")" + "\" wird permanent gelöscht.")
+            Text("“\(snippet.triggers.first ?? "")” will be permanently deleted.")
         }
     }
 
@@ -175,7 +175,7 @@ struct SnippetsView: View {
             Image(systemName: "text.badge.plus")
                 .font(.system(size: 36, weight: .light))
                 .foregroundStyle(DS.Palette.ink3)
-            Text("Noch keine Snippets — leg dein erstes an.")
+            Text("No snippets yet — create your first.")
                 .font(DS.Font.sans(14))
                 .foregroundStyle(DS.Palette.ink3)
         }

@@ -172,10 +172,10 @@ nonisolated enum TranscriptionError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .modelNotLoaded:    "Whisper-Modell ist noch nicht geladen."
-        case .noActiveRecording: "Keine aktive Aufnahme vorhanden."
-        case .audioSetupFailed:  "Audio konnte nicht gelesen werden."
-        case .noAudioCaptured:   "Keine Audio-Samples aufgenommen — Mikrofon-Berechtigung prüfen."
+        case .modelNotLoaded:    "Whisper model not loaded yet."
+        case .noActiveRecording: "No active recording."
+        case .audioSetupFailed:  "Couldn't read audio."
+        case .noAudioCaptured:   "No audio samples captured — check microphone permission."
         }
     }
 }

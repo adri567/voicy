@@ -39,7 +39,7 @@ struct TranscribeHistoryRow: View {
             .contentShape(Rectangle())
             .overlay(alignment: .topTrailing) {
                 if copied {
-                    Text("Kopiert")
+                    Text("Copied")
                         .font(DS.Font.mono(9, weight: .medium))
                         .textCase(.uppercase)
                         .tracking(1.2)
@@ -59,8 +59,8 @@ struct TranscribeHistoryRow: View {
                     )
             )
             .contextMenu {
-                Button("Vollständigen Text kopieren") { copyText() }
-                Button("Detail öffnen") { onOpen() }
+                Button("Copy full text") { copyText() }
+                Button("Open detail") { onOpen() }
             }
         }
     }

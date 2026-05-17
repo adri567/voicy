@@ -47,8 +47,8 @@ struct MainWindowView: View {
 
     private var sidebarHelp: String {
         switch sidebarMode {
-        case .full:    "Sidebar kompakt machen (⌃⌘S)"
-        case .compact: "Sidebar vergrößern (⌃⌘S)"
+        case .full:    "Collapse sidebar (⌃⌘S)"
+        case .compact: "Expand sidebar (⌃⌘S)"
         }
     }
 

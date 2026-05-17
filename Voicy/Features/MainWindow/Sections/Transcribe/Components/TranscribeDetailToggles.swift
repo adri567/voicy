@@ -19,7 +19,7 @@ struct TranscribeDetailToggles: View {
                 label: "Speaker labels",
                 isOn: showSpeakers,
                 disabled: !speakersAvailable,
-                badge: speakersAvailable ? nil : "nicht verfügbar"
+                badge: speakersAvailable ? nil : "unavailable"
             ) {
                 showSpeakers.toggle()
             }

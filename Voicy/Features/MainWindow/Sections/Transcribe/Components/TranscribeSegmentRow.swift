@@ -30,11 +30,11 @@ struct TranscribeSegmentRow: View {
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { copyText() }
             .contextMenu {
-                Button("Segment kopieren") { copyText() }
+                Button("Copy segment") { copyText() }
             }
             .overlay(alignment: .topTrailing) {
                 if copied {
-                    Text("Kopiert")
+                    Text("Copied")
                         .font(DS.Font.mono(9, weight: .medium))
                         .textCase(.uppercase)
                         .tracking(1.2)

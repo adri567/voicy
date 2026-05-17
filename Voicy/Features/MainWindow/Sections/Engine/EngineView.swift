@@ -92,41 +92,41 @@ struct EngineView: View {
             )
         }
         .alert(
-            "Modell aktivieren?",
+            "Activate model?",
             isPresented: Binding(
                 get: { pendingSetDefault != nil },
                 set: { if !$0 { pendingSetDefault = nil } }
             ),
             presenting: pendingSetDefault
         ) { model in
-            Button("Abbrechen", role: .cancel) { pendingSetDefault = nil }
-            Button("Jetzt neu starten") {
+            Button("Cancel", role: .cancel) { pendingSetDefault = nil }
+            Button("Restart now") {
                 let m = model
                 pendingSetDefault = nil
                 viewModel.setAsDefault(family: m.asVMFamily, id: m.libraryID)
             }
         } message: { model in
-            Text("Voicy wechselt zu \(model.name) und startet neu. Eine laufende Aufnahme geht dabei verloren.")
+            Text("Voicy will switch to \(model.name) and restart. Any active recording will be lost.")
         }
         .alert(
-            "Modell löschen?",
+            "Delete model?",
             isPresented: Binding(
                 get: { pendingRemove != nil },
                 set: { if !$0 { pendingRemove = nil } }
             ),
             presenting: pendingRemove
         ) { model in
-            Button("Abbrechen", role: .cancel) { pendingRemove = nil }
-            Button("Löschen", role: .destructive) {
+            Button("Cancel", role: .cancel) { pendingRemove = nil }
+            Button("Delete", role: .destructive) {
                 let m = model
                 pendingRemove = nil
                 Task { await viewModel.remove(family: m.asVMFamily, id: m.libraryID) }
             }
         } message: { model in
             if viewModel.statuses[model.libraryID] == .active {
-                Text("\(model.name) ist aktuell aktiv. Nach dem Löschen kannst du nicht mehr aufnehmen, bis du es neu installierst.")
+                Text("\(model.name) is currently active. After deletion, recording won't work until you reinstall it.")
             } else {
-                Text("\(model.name) löschen? Du kannst es jederzeit neu installieren.")
+                Text("Delete \(model.name)? You can reinstall it anytime.")
             }
         }
     }
