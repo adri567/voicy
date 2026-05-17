@@ -2,15 +2,27 @@ import SwiftUI
 
 struct TranscribeDetailToggles: View {
     @Binding var continuous: Bool
+    @Binding var showSpeakers: Bool
     @Binding var showTime: Bool
     @Binding var showPunctuation: Bool
+    /// `false` when the underlying entry has no speaker data (model not
+    /// installed when it was transcribed, or pre-diarization legacy entry).
+    /// The toggle is disabled in that case — flipping it would do nothing.
+    let speakersAvailable: Bool
 
     var body: some View {
         HStack(spacing: 16) {
             chip(label: "Continuous text", isOn: continuous, disabled: false, badge: nil) {
                 continuous.toggle()
             }
-            chip(label: "Speaker labels", isOn: false, disabled: true, badge: "Phase 3", action: {})
+            chip(
+                label: "Speaker labels",
+                isOn: showSpeakers,
+                disabled: !speakersAvailable,
+                badge: speakersAvailable ? nil : "nicht verfügbar"
+            ) {
+                showSpeakers.toggle()
+            }
             chip(label: "Timestamps", isOn: showTime, disabled: continuous, badge: nil) {
                 showTime.toggle()
             }

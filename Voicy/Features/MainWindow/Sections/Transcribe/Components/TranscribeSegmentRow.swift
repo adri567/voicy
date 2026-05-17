@@ -6,6 +6,7 @@ struct TranscribeSegmentRow: View {
     let isFirst: Bool
     var showTime: Bool = true
     var showPunctuation: Bool = true
+    var showSpeaker: Bool = false
     var currentlyPlaying: Bool = false
     var onJump: () -> Void = {}
 
@@ -90,13 +91,19 @@ struct TranscribeSegmentRow: View {
 
     @ViewBuilder
     private var textColumn: some View {
-        Text(displayText)
-            .font(DS.Font.sans(15))
-            .foregroundStyle(DS.Palette.ink)
-            .lineSpacing(5)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .multilineTextAlignment(.leading)
-            .textSelection(.enabled)
+        VStack(alignment: .leading, spacing: 6) {
+            if showSpeaker, let speaker = segment.speaker {
+                Text("Speaker \(speaker + 1)")
+                    .dsTag(accent: true)
+            }
+            Text(displayText)
+                .font(DS.Font.sans(15))
+                .foregroundStyle(DS.Palette.ink)
+                .lineSpacing(5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .multilineTextAlignment(.leading)
+                .textSelection(.enabled)
+        }
     }
 
     @ViewBuilder

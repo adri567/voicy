@@ -236,6 +236,9 @@ struct EngineView: View {
             .padding(.vertical, 8)
             .dsPanel()
 
+            DiarizationModelCard()
+                .padding(.top, 24)
+
             HStack {
                 MetaLabel(text: "Looking for something exotic? Paste a Hugging Face URL.")
                 Spacer()

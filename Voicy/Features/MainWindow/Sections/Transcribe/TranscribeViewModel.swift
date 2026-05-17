@@ -13,6 +13,7 @@ final class TranscribeViewModel {
     @ObservationIgnored @Injected(\.whisperTranscriptionService) private var whisperService
     @ObservationIgnored @Injected(\.parakeetTranscriptionService) private var parakeetService
     @ObservationIgnored @Injected(\.fileTranscriptionHistoryService) private var historyService
+    @ObservationIgnored @Injected(\.diarizationService) private var diarizationService
 
     // MARK: - Engine + language selection (isolated from the global mic engine)
 
@@ -254,15 +255,27 @@ final class TranscribeViewModel {
         case .parakeet: parakeetService
         }
 
+        // Diarization runs in parallel with the transcription. When the model
+        // isn't installed we skip the diarize call entirely (no progress, no
+        // latency hit). Errors are caught at the await site below — a failed
+        // diarization must never block the transcription itself from showing.
+        let shouldDiarize = diarizationService.isModelInstalled()
+        async let diarizationFuture: [DiarizationSegment] = {
+            guard shouldDiarize else { return [] }
+            return (try? await diarizationService.diarize(at: url)) ?? []
+        }()
+
         let result = try await service.transcribeFile(
             at: url,
             language: effectiveSourceLanguage
         )
         guard !Task.isCancelled else { return }
 
-        let segments = result.segments ?? [
+        let rawSegments = result.segments ?? [
             TranscriptionSegment(start: 0, end: result.duration, text: result.text)
         ]
+        let diarization = await diarizationFuture
+        let segments = Self.mergeSpeakers(into: rawSegments, diarization: diarization)
         realSegments = segments
 
         // Identify the language the transcript is actually in. Whisper supplies
@@ -382,5 +395,40 @@ final class TranscribeViewModel {
         panel.allowedContentTypes = [.plainText]
         guard panel.runModal() == .OK, let url = panel.url else { return }
         try? text.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    // MARK: - Speaker alignment
+
+    /// Stamp each transcription segment with the speaker that has the most
+    /// time overlap with it. Segments without any overlap stay as `nil` —
+    /// they fall through to "no speaker info" in the UI.
+    ///
+    /// Pragmatic max-overlap heuristic — for very fast speaker switches
+    /// within a single transcription segment the secondary speaker is lost,
+    /// but Whisper / Parakeet segments are rarely <2s so the dominant
+    /// speaker is the right call in practice.
+    nonisolated static func mergeSpeakers(
+        into segments: [TranscriptionSegment],
+        diarization: [DiarizationSegment]
+    ) -> [TranscriptionSegment] {
+        guard !diarization.isEmpty else { return segments }
+
+        return segments.map { seg in
+            var bestSpeaker: Int?
+            var bestOverlap: TimeInterval = 0
+            for d in diarization {
+                let overlap = max(0, min(seg.end, d.end) - max(seg.start, d.start))
+                if overlap > bestOverlap {
+                    bestOverlap = overlap
+                    bestSpeaker = d.speakerId
+                }
+            }
+            return TranscriptionSegment(
+                start: seg.start,
+                end: seg.end,
+                text: seg.text,
+                speaker: bestSpeaker
+            )
+        }
     }
 }

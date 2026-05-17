@@ -31,6 +31,18 @@ extension Container {
         }
     }
 
+    /// Speaker-diarization (Sortformer via FluidAudio). Add-on to the
+    /// transcription engines, not an alternative — runs in parallel when
+    /// installed. If the user hasn't installed the model, the service is still
+    /// constructed but `isModelInstalled()` returns false and callers skip the
+    /// diarize step.
+    var diarizationService: Factory<any DiarizationService> {
+        Factory(self) {
+            MainActor.assumeIsolated { FluidAudioDiarizationService() }
+        }
+        .singleton
+    }
+
     var pasteService: Factory<any PasteService> {
         Factory(self) { DefaultPasteService() }
             .singleton

@@ -11,10 +11,15 @@ struct TranscribeDetailView: View {
     let onBack: () -> Void
 
     @State private var continuous = true
+    @State private var showSpeakers = false
     @State private var showTime = true
     @State private var showPunctuation = true
     @State private var copied = false
     @State private var copiedResetTask: Task<Void, Never>?
+
+    private var speakersAvailable: Bool {
+        entry.segments.contains { $0.speaker != nil }
+    }
 
     var body: some View {
         ScrollView {
@@ -25,8 +30,10 @@ struct TranscribeDetailView: View {
                     .padding(.bottom, 22)
                 TranscribeDetailToggles(
                     continuous: $continuous,
+                    showSpeakers: $showSpeakers,
                     showTime: $showTime,
-                    showPunctuation: $showPunctuation
+                    showPunctuation: $showPunctuation,
+                    speakersAvailable: speakersAvailable
                 )
                 .padding(.bottom, 22)
                 actionsRow
@@ -125,6 +132,7 @@ struct TranscribeDetailView: View {
                     isFirst: index == 0,
                     showTime: showTime,
                     showPunctuation: showPunctuation,
+                    showSpeaker: showSpeakers && speakersAvailable,
                     currentlyPlaying: false,
                     onJump: {}
                 )
@@ -138,16 +146,59 @@ struct TranscribeDetailView: View {
 
     @ViewBuilder
     private var continuousPanel: some View {
-        Text(continuousText)
-            .font(DS.Font.serif(18))
-            .foregroundStyle(DS.Palette.ink)
-            .lineSpacing(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .multilineTextAlignment(.leading)
-            .textSelection(.enabled)
-            .padding(.horizontal, 30)
-            .padding(.vertical, 26)
-            .dsPanel()
+        if showSpeakers && speakersAvailable {
+            speakerGroupedContinuousPanel
+        } else {
+            Text(continuousText)
+                .font(DS.Font.serif(18))
+                .foregroundStyle(DS.Palette.ink)
+                .lineSpacing(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .multilineTextAlignment(.leading)
+                .textSelection(.enabled)
+                .padding(.horizontal, 30)
+                .padding(.vertical, 26)
+                .dsPanel()
+        }
+    }
+
+    @ViewBuilder
+    private var speakerGroupedContinuousPanel: some View {
+        let groups = speakerGroups
+        VStack(alignment: .leading, spacing: 22) {
+            ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Speaker \((group.speaker ?? 0) + 1)")
+                        .dsTag(accent: true)
+                    Text(group.text)
+                        .font(DS.Font.serif(18))
+                        .foregroundStyle(DS.Palette.ink)
+                        .lineSpacing(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .multilineTextAlignment(.leading)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+        .padding(.horizontal, 30)
+        .padding(.vertical, 26)
+        .dsPanel()
+    }
+
+    /// Group consecutive segments by their speaker so the continuous view
+    /// reads like a conversation transcript ("Speaker 1: … Speaker 2: …").
+    private var speakerGroups: [(speaker: Int?, text: String)] {
+        var groups: [(speaker: Int?, text: String)] = []
+        for seg in entry.segments {
+            let cleaned = formatted(seg.text)
+            guard !cleaned.isEmpty else { continue }
+            if let last = groups.last, last.speaker == seg.speaker {
+                groups[groups.count - 1].text = last.text + " " + cleaned
+            } else {
+                groups.append((seg.speaker, cleaned))
+            }
+        }
+        return groups
     }
 
     private var continuousText: String {
@@ -158,6 +209,10 @@ struct TranscribeDetailView: View {
         let raw = entry.fullText.isEmpty
             ? entry.segments.map(\.text).joined(separator: " ")
             : entry.fullText
+        return formatted(raw)
+    }
+
+    private func formatted(_ raw: String) -> String {
         guard !showPunctuation else { return raw }
         let scalars = raw.lowercased().unicodeScalars.filter { scalar in
             !CharacterSet(charactersIn: ".,!?;:—").contains(scalar)
