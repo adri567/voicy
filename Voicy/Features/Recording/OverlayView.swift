@@ -40,14 +40,24 @@ struct OverlayView: View {
 
                     if cycle.activeMode.type != .raw {
                         CycleBadge(mode: cycle.activeMode)
-                            .transition(.asymmetric(
-                                insertion: .scale(scale: 0.0, anchor: .leading).combined(with: .opacity),
-                                removal:   .scale(scale: 0.0, anchor: .leading).combined(with: .opacity)
-                            ))
+                            // Each mode gets its own SwiftUI identity so the
+                            // old badge actually leaves (removal transition)
+                            // and the new one enters (insertion transition)
+                            // when the cycle advances — otherwise it's just
+                            // a swap of arguments and the transition is silent.
+                            .id(cycle.activeMode.id)
+                            .transition(.scale(scale: 0, anchor: .leading).combined(with: .opacity))
                     }
                 }
             }
         }
+        // Breathing room for spring-overshoot: the badge's scale exceeds 1.0
+        // mid-bounce (dampingFraction 0.5), so without padding the NSPanel
+        // clips the overshooting edges. Symmetric horizontally so the pill
+        // stays centered; small bottom pad because top is already covered by
+        // the warning-text reservation below.
+        .padding(.horizontal, 8)
+        .padding(.bottom, 6)
         // Reserve vertical space for the brain-warning text *outside* the
         // pill+bubble HStack, so showing the warning never widens the row or
         // shifts the bubble. The slot is always present during recording —
@@ -57,14 +67,17 @@ struct OverlayView: View {
             if isRecording {
                 Text("No AI model installed")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Color(red: 1.0, green: 0.73, blue: 0.2))
+                    .foregroundStyle(.white)
                     .fixedSize()
                     .opacity(brainWarning ? 1 : 0)
                     .animation(.easeOut(duration: 0.18), value: brainWarning)
                     .allowsHitTesting(false)
             }
         }
-        .animation(.spring(response: 0.42, dampingFraction: 0.78), value: cycle.step)
+        // Critically-damped spring: badge emerges smoothly to 100% without
+        // overshooting — overshoot looked ungainly because the badge briefly
+        // exceeded the pill height.
+        .animation(.spring(response: 0.4, dampingFraction: 1.0), value: cycle.step)
     }
 
     @ViewBuilder
@@ -103,7 +116,7 @@ struct OverlayView: View {
         VStack(spacing: 6) {
             Text(message)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color(red: 1.0, green: 0.73, blue: 0.2))
+                .foregroundStyle(.white)
                 .fixedSize()
             Color.clear
                 .frame(width: 40, height: 8)

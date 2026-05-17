@@ -300,21 +300,6 @@ struct BrainView: View {
             .padding(.horizontal, 28)
             .padding(.vertical, 8)
             .dsPanel()
-
-            HStack {
-                MetaLabel(text: "Got a GGUF or MLX model? Drop it on Voicy to install.")
-                Spacer()
-                Button("Import model →") {
-                    // TODO(import-llm): not implemented
-                }
-                .buttonStyle(.plain)
-                .font(DS.Font.sans(12, weight: .medium))
-                .foregroundStyle(DS.Palette.ink)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 10)
-                .overlay(Capsule().stroke(DS.Palette.ink, lineWidth: 1))
-            }
-            .padding(.top, 32)
         }
     }
 }

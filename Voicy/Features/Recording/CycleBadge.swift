@@ -19,7 +19,5 @@ struct CycleBadge: View {
         .frame(width: 25, height: 25)
         .background(.black.opacity(0.8), in: Circle())
         .overlay(Circle().strokeBorder(.white.opacity(0.4), lineWidth: 0.5))
-        .id(mode.id)
-        .transition(.opacity.combined(with: .scale(0.6)))
     }
 }

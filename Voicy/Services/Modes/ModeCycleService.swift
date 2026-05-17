@@ -60,11 +60,13 @@ final class ModeCycleService {
     /// Advance one slot. Wraps from the last slot back to the first.
     func cycleForward() {
         step = (step + 1) % modes.count
+        SoundService.playModeSwitch()
     }
 
     /// Step one slot back. Wraps from the first slot to the last.
     func cycleBackward() {
         step = (step - 1 + modes.count) % modes.count
+        SoundService.playModeSwitch()
     }
 
     func resetCycle() {

@@ -136,8 +136,11 @@ struct EngineView: View {
     private var masthead: some View {
         HStack(alignment: .top, spacing: 56) {
             VStack(alignment: .leading, spacing: 0) {
-                MetaLabel(text: "◆ The Editorial", color: DS.Palette.accent)
-                    .padding(.bottom, 14)
+                HStack(spacing: 10) {
+                    MetaLabel(text: "◆ The Editorial", color: DS.Palette.accent)
+                    Text("Beta").dsTag()
+                }
+                .padding(.bottom, 14)
 
                 Text("Pick the \(Text("voice").italic().foregroundColor(DS.Palette.accent))\nthat turns your speech into type.")
                     .font(DS.Font.serif(50))
@@ -238,21 +241,6 @@ struct EngineView: View {
 
             DiarizationModelCard()
                 .padding(.top, 24)
-
-            HStack {
-                MetaLabel(text: "Looking for something exotic? Paste a Hugging Face URL.")
-                Spacer()
-                Button("Import model →") {
-                    // TODO(import-model): not implemented
-                }
-                .buttonStyle(.plain)
-                .font(DS.Font.sans(12, weight: .medium))
-                .foregroundStyle(DS.Palette.ink)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 10)
-                .overlay(Capsule().stroke(DS.Palette.ink, lineWidth: 1))
-            }
-            .padding(.top, 32)
         }
     }
 }

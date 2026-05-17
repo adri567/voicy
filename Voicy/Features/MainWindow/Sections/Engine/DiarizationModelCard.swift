@@ -50,10 +50,13 @@ struct DiarizationModelCard: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
                 MetaLabel(text: "◆ Add-on", color: DS.Palette.accent)
-                Text("Speaker recognition")
-                    .font(DS.Font.serif(26))
-                    .tracking(-0.3)
-                    .foregroundStyle(DS.Palette.ink)
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text("Speaker recognition")
+                        .font(DS.Font.serif(26))
+                        .tracking(-0.3)
+                        .foregroundStyle(DS.Palette.ink)
+                    Text("Beta").dsTag()
+                }
             }
             Spacer()
             statusBadge

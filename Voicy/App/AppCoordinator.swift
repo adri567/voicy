@@ -9,18 +9,12 @@ final class AppCoordinator {
     let viewModel = RecordingViewModel()
     let modeCycleService = Container.shared.modeCycleService()
 
-    // NSEvent monitor tokens are accessed from the synchronous deinit (which is
-    // non-isolated for @MainActor classes); marking them nonisolated(unsafe) is
-    // the documented Apple pattern for this AppKit interop case. The tokens are
-    // only ever set/cleared on MainActor methods, so there is no real race.
-    nonisolated(unsafe) private var arrowKeyGlobalMonitor: Any?
-    nonisolated(unsafe) private var arrowKeyLocalMonitor: Any?
-
     private var overlayController: RecordingOverlayWindowController?
     private var transcriptController: TranscriptPopupWindowController?
     private let pasteService: any PasteService = Container.shared.pasteService()
     private let targetAppService: any TargetAppService = Container.shared.targetAppService()
     private let hotkey = HotkeyEventTap()
+    private let arrowTap = ArrowKeyEventTap()
     
     // Gesture state machine.
     //
@@ -34,7 +28,7 @@ final class AppCoordinator {
     //                    on release we stop + transcribe + paste.
     //   toggle         — entered on double-Fn; bubble persists until the
     //                    next Fn press, which stops + transcribes + pastes.
-    //
+    //Yeah.
     // A short single tap does NOT make the bubble appear — we only show
     // the bubble once we know the gesture is genuinely a hold or a toggle.
     private enum HotkeyGesture { case idle, pendingHold, hold, toggle }
@@ -76,6 +70,15 @@ final class AppCoordinator {
             }
         }
         hotkey.enable()
+
+        arrowTap.onCycle = { [weak self] forward in
+            guard let self else { return }
+            if forward {
+                self.modeCycleService.cycleForward()
+            } else {
+                self.modeCycleService.cycleBackward()
+            }
+        }
     }
 
     private func handleFnPress() async {
@@ -172,12 +175,13 @@ final class AppCoordinator {
         viewModel.clearTranscript()
         viewModel.captureTargetApp(targetAppService.captureCurrent())
         modeCycleService.resetCycle()
-        installArrowKeyMonitor()
+        arrowTap.enable()
+        SoundService.playRecordingStart()
         await viewModel.toggleRecording()
     }
 
     private func finishRecording() async {
-        removeArrowKeyMonitor()
+        arrowTap.disable()
 
         // Hold-release edge case: the user is letting go *while* the model
         // is still being lazy-loaded for this very session. Without this
@@ -188,6 +192,7 @@ final class AppCoordinator {
             return
         }
 
+        SoundService.playRecordingStop()
         await viewModel.toggleRecording()
         if !viewModel.transcript.isEmpty {
             pasteService.paste(viewModel.transcript)
@@ -198,61 +203,4 @@ final class AppCoordinator {
         }
     }
 
-    // MARK: Arrow-key cycle during recording
-    //
-    // macOS transforms `fn + →` / `fn + ←` into End / Home key events at the
-    // HID layer, so the keyCode we receive is 119/115 — *not* RightArrow (124) /
-    // LeftArrow (123). We accept both encodings, plus a Fn+Arrow combo for
-    // good measure if the user hits it inside an app that does *not* perform
-    // the transform.
-
-    private static let endKeyCode: UInt16 = 119
-    private static let homeKeyCode: UInt16 = 115
-    private static let rightArrowKeyCode: UInt16 = 124
-    private static let leftArrowKeyCode: UInt16 = 123
-
-    private func installArrowKeyMonitor() {
-        guard arrowKeyGlobalMonitor == nil else { return }
-
-        // Capture a MainActor-bound cycle action so the AppKit callback (which
-        // runs nonisolated) only needs to dispatch it.
-        let onCycle: @MainActor @Sendable (Bool) -> Void = { [weak self] forward in
-            guard let self else { return }
-            if forward {
-                self.modeCycleService.cycleForward()
-            } else {
-                self.modeCycleService.cycleBackward()
-            }
-        }
-
-        arrowKeyGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-            let isForward  = event.keyCode == Self.endKeyCode  || event.keyCode == Self.rightArrowKeyCode
-            let isBackward = event.keyCode == Self.homeKeyCode || event.keyCode == Self.leftArrowKeyCode
-            guard isForward || isBackward else { return }
-            Task { @MainActor in onCycle(isForward) }
-        }
-        arrowKeyLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            let isForward  = event.keyCode == Self.endKeyCode  || event.keyCode == Self.rightArrowKeyCode
-            let isBackward = event.keyCode == Self.homeKeyCode || event.keyCode == Self.leftArrowKeyCode
-            guard isForward || isBackward else { return event }
-            Task { @MainActor in onCycle(isForward) }
-            return nil // swallow the key so we don't paste End/Home into the target app
-        }
-    }
-
-    private func removeArrowKeyMonitor() {
-        if let monitor = arrowKeyGlobalMonitor {
-            NSEvent.removeMonitor(monitor)
-            arrowKeyGlobalMonitor = nil
-        }
-        if let monitor = arrowKeyLocalMonitor {
-            NSEvent.removeMonitor(monitor)
-            arrowKeyLocalMonitor = nil
-        }
-    }
-
-    deinit {
-        if let monitor = arrowKeyGlobalMonitor { NSEvent.removeMonitor(monitor) }
-        if let monitor = arrowKeyLocalMonitor { NSEvent.removeMonitor(monitor) }
-    }
 }
