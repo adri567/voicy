@@ -20,14 +20,13 @@ final class AppCoordinator {
     private var transcriptController: TranscriptPopupWindowController?
     private let pasteService: any PasteService = Container.shared.pasteService()
     private let targetAppService: any TargetAppService = Container.shared.targetAppService()
-    private let hotkeyTap = HotkeyEventTap()
-    
+    private let hotkey = HotkeyEventTap()
+
     // Gesture state for double-tap toggle. A second Fn press inside
     // `doubleTapWindow` after a previous release arms the persistent
     // toggle-recording mode. The bubble stays open until the next single
-    // Fn press exits it. We can intercept Fn cleanly because the
-    // HotkeyEventTap swallows the system's default Character Viewer
-    // trigger — without that the OS would steal double-Fn.
+    // Fn press exits it. Character Viewer suppression is best-effort —
+    // see HotkeyEventTap doc for the open issue.
     private var lastFnReleaseTime: Date?
     private var currentPressStartTime: Date?
     private var isToggleRecording: Bool = false
@@ -48,17 +47,17 @@ final class AppCoordinator {
     }
 
     private func registerHotkey() {
-        hotkeyTap.onFnPress = { [weak self] in
+        hotkey.onFnPress = { [weak self] in
             Task { @MainActor [weak self] in
                 await self?.handleFnPress()
             }
         }
-        hotkeyTap.onFnRelease = { [weak self] in
+        hotkey.onFnRelease = { [weak self] in
             Task { @MainActor [weak self] in
                 await self?.handleFnRelease()
             }
         }
-        hotkeyTap.enable()
+        hotkey.enable()
     }
 
     private func handleFnPress() async {

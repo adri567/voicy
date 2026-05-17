@@ -1,15 +1,13 @@
 import AppKit
 import Foundation
 
-/// Low-level CGEventTap that intercepts the Fn modifier globally and swallows
-/// the event so macOS never sees it — without this, pressing Fn triggers the
-/// system Character Viewer / dictation toggle (configurable in System
-/// Settings, but defaults to "Show Emoji & Symbols" on modern macOS).
+/// Low-level CGEventTap that observes the Fn modifier globally.
 ///
-/// `NSEvent.addGlobalMonitor` cannot swallow events, only observe them. A
-/// CGEventTap inserted at the session head can return `nil` from its callback
-/// to consume the event. Costs: requires Accessibility permission (already
-/// requested by AppCoordinator on launch) and a CFRunLoop source.
+/// Tries to swallow the event (return `nil`) on Fn transitions so the
+/// system Character Viewer never opens — but `.cgSessionEventTap` fires
+/// after macOS has already routed Fn to its system handler on modern
+/// versions, so the picker may still appear. Hotkey detection works
+/// reliably regardless; suppression is best-effort.
 @MainActor
 final class HotkeyEventTap {
 
@@ -94,9 +92,9 @@ final class HotkeyEventTap {
         let isFnTransition = MainActor.assumeIsolated {
             self.dispatchTransition(fnDown: fnDown)
         }
-        // Only swallow on Fn transitions — other modifier-only events
-        // (Shift, Ctrl, Cmd, …) must pass through untouched so they can
-        // still serve their normal purpose in other apps.
+        // Best-effort: swallow Fn transitions so other apps don't see them.
+        // The system Character Viewer may still trigger on macOS 14+ because
+        // .cgSessionEventTap runs after that routing decision.
         return isFnTransition ? nil : Unmanaged.passUnretained(event)
     }
 
