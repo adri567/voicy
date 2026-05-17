@@ -145,6 +145,10 @@ actor ParakeetTranscriptionService: TranscriptionService {
         return Voicy.TranscriptionSegment(start: start, end: end, text: text)
     }
 
+    func cancelRecording() {
+        _ = recorder.stop()
+    }
+
     func currentAudioLevel() -> Float {
         recorder.currentLevel()
     }

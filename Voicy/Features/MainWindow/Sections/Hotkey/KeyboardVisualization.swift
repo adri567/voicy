@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct KeyboardVisualization: View {
-    let active: TriggerOption
-
     private let rows: [[String]] = [
         ["esc","F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"],
         ["~","1","2","3","4","5","6","7","8","9","0","-","="],
@@ -49,7 +47,7 @@ struct KeyboardVisualization: View {
     }
 
     private func keyCap(_ label: String) -> some View {
-        let isActive = isActiveKey(label)
+        let isActive = label == "fn"
         let width: CGFloat = label == "space" ? 80 : (label.count > 1 && label != "↩" ? 30 : 22)
 
         return ZStack {
@@ -69,15 +67,5 @@ struct KeyboardVisualization: View {
             }
         }
         .frame(width: width)
-    }
-
-    private func isActiveKey(_ label: String) -> Bool {
-        switch active {
-        case .fn:     return label == "fn"
-        case .rcmd:   return label == "⌘"
-        case .ralt:   return label == "⌥"
-        case .caps:   return label == "caps"
-        case .custom: return false
-        }
     }
 }

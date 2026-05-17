@@ -107,6 +107,10 @@ actor DefaultTranscriptionService: TranscriptionService {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    func cancelRecording() {
+        _ = recorder.stop()
+    }
+
     func currentAudioLevel() -> Float {
         recorder.currentLevel()
     }

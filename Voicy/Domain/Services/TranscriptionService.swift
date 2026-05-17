@@ -4,6 +4,11 @@ protocol TranscriptionService: Sendable {
     nonisolated func loadModel() async throws
     nonisolated func startRecording() async throws
     nonisolated func stopAndTranscribe() async throws -> TranscriptionResult
+    /// Stops the active recording without running inference. Samples are
+    /// dropped. Used when the user's tap was too short to be meaningful
+    /// (double-tap first half, accidental brush) — instant return, so the
+    /// app state can flip back to idle without waiting for ASR.
+    nonisolated func cancelRecording() async
     nonisolated func currentAudioLevel() async -> Float
 
     /// Transcribe an audio/video file from disk. Loaded model required.

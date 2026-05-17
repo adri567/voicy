@@ -13,15 +13,26 @@ final class AppCoordinator {
     // non-isolated for @MainActor classes); marking them nonisolated(unsafe) is
     // the documented Apple pattern for this AppKit interop case. The tokens are
     // only ever set/cleared on MainActor methods, so there is no real race.
-    nonisolated(unsafe) private var globalMonitor: Any?
     nonisolated(unsafe) private var arrowKeyGlobalMonitor: Any?
     nonisolated(unsafe) private var arrowKeyLocalMonitor: Any?
 
-    private var previousFlags: NSEvent.ModifierFlags = []
     private var overlayController: RecordingOverlayWindowController?
     private var transcriptController: TranscriptPopupWindowController?
     private let pasteService: any PasteService = Container.shared.pasteService()
     private let targetAppService: any TargetAppService = Container.shared.targetAppService()
+    private let hotkeyTap = HotkeyEventTap()
+    
+    // Gesture state for double-tap toggle. A second Fn press inside
+    // `doubleTapWindow` after a previous release arms the persistent
+    // toggle-recording mode. The bubble stays open until the next single
+    // Fn press exits it. We can intercept Fn cleanly because the
+    // HotkeyEventTap swallows the system's default Character Viewer
+    // trigger — without that the OS would steal double-Fn.
+    private var lastFnReleaseTime: Date?
+    private var currentPressStartTime: Date?
+    private var isToggleRecording: Bool = false
+    private static let doubleTapWindow: TimeInterval = 0.35
+    private static let tapDiscardThreshold: TimeInterval = 0.25
 
     func setup() {
         guard overlayController == nil else { return }
@@ -37,37 +48,79 @@ final class AppCoordinator {
     }
 
     private func registerHotkey() {
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        hotkeyTap.onFnPress = { [weak self] in
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                let fnPressed  = !self.previousFlags.contains(.function) && flags.contains(.function)
-                let fnReleased = self.previousFlags.contains(.function) && !flags.contains(.function)
-                self.previousFlags = flags
-                if fnPressed {
-                    await self.handleFnPress()
-                } else if fnReleased {
-                    await self.handleFnRelease()
-                }
+                await self?.handleFnPress()
             }
         }
+        hotkeyTap.onFnRelease = { [weak self] in
+            Task { @MainActor [weak self] in
+                await self?.handleFnRelease()
+            }
+        }
+        hotkeyTap.enable()
     }
 
     private func handleFnPress() async {
+        // Exit path for toggle mode: any Fn press while a toggle recording
+        // is active stops + transcribes. We branch on this first so a
+        // single tap is never re-interpreted as the start of a new gesture.
+        if viewModel.state == .recording && isToggleRecording {
+            isToggleRecording = false
+            removeArrowKeyMonitor()
+            await viewModel.toggleRecording()
+            lastFnReleaseTime = Date()
+            if !viewModel.transcript.isEmpty {
+                pasteService.paste(viewModel.transcript)
+                if viewModel.showTranscript {
+                    let barFrame = overlayController?.window?.frame ?? .zero
+                    transcriptController?.show(above: barFrame)
+                }
+            }
+            return
+        }
+
         guard viewModel.state == .idle
               || viewModel.state == .noModel
               || viewModel.state == .noBrain else { return }
+
+        let now = Date()
+        let isDoubleTap = lastFnReleaseTime
+            .map { now.timeIntervalSince($0) < Self.doubleTapWindow } ?? false
+
         transcriptController?.hide()
         viewModel.clearTranscript()
         viewModel.captureTargetApp(targetAppService.captureCurrent())
         modeCycleService.resetCycle()
         installArrowKeyMonitor()
+        currentPressStartTime = now
+        isToggleRecording = isDoubleTap
         await viewModel.toggleRecording()
     }
 
     private func handleFnRelease() async {
-        removeArrowKeyMonitor()
+        // In toggle mode, releasing the key does nothing — the recording
+        // is held until the next single Fn press exits it (handled above).
+        if isToggleRecording { return }
+
+        let pressDuration = currentPressStartTime
+            .map { Date().timeIntervalSince($0) } ?? 0
+        currentPressStartTime = nil
+        // Always update release time — the second tap of a double-tap
+        // needs to see this timestamp to detect itself.
+        lastFnReleaseTime = Date()
+
         guard viewModel.state == .recording else { return }
+
+        // Too short to be a real hold — likely tap #1 of a double-tap or
+        // an accidental brush. Drop the audio so nothing gets pasted.
+        if pressDuration < Self.tapDiscardThreshold {
+            removeArrowKeyMonitor()
+            await viewModel.discardRecording()
+            return
+        }
+
+        removeArrowKeyMonitor()
         await viewModel.toggleRecording()
         if !viewModel.transcript.isEmpty {
             pasteService.paste(viewModel.transcript)
@@ -132,7 +185,6 @@ final class AppCoordinator {
     }
 
     deinit {
-        if let monitor = globalMonitor { NSEvent.removeMonitor(monitor) }
         if let monitor = arrowKeyGlobalMonitor { NSEvent.removeMonitor(monitor) }
         if let monitor = arrowKeyLocalMonitor { NSEvent.removeMonitor(monitor) }
     }

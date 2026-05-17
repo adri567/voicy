@@ -96,6 +96,21 @@ final class RecordingViewModel {
         transcript = ""
     }
 
+    /// Stops the mic without running ASR. Used by the double-tap detector
+    /// when the user's first tap is too short to be a real hold — likely
+    /// the first half of a double-tap that should arm toggle mode. Returns
+    /// fast (no Whisper/Parakeet inference) so `state` flips back to
+    /// `.idle` before the user's second tap arrives.
+    func discardRecording() async {
+        guard state == .recording else { return }
+        levelTask?.cancel()
+        levelTask = nil
+        audioLevel = 0
+        await service.cancelRecording()
+        pendingTargetApp = nil
+        state = .idle
+    }
+
     private func startRecording() async {
         // Pre-flight: nothing to record into if there's no voice model yet.
         guard service.isModelInstalled() else {
