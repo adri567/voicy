@@ -37,19 +37,19 @@ actor DefaultTranscriptionService: TranscriptionService {
         try recorder.start()
     }
 
-    func stopAndTranscribe() async throws -> TranscriptionResult {
+    func stopAndTranscribe(language: String) async throws -> TranscriptionResult {
         guard let kit = whisperKit else { throw TranscriptionError.noActiveRecording }
 
         let (samples, duration) = recorder.stop()
 
-        print("[WhisperKit] Final transcription: \(samples.count) samples (\(String(format: "%.1f", Double(samples.count) / 16000.0))s)")
+        print("[WhisperKit] Final transcription: \(samples.count) samples (\(String(format: "%.1f", Double(samples.count) / 16000.0))s), language=\(language)")
         guard !samples.isEmpty else {
             throw TranscriptionError.noAudioCaptured
         }
 
         let results = try await kit.transcribe(
             audioArray: samples,
-            decodeOptions: DecodingOptions(language: "de")
+            decodeOptions: DecodingOptions(language: language)
         )
         let text = Self.cleanWhisperOutput(
             results.compactMap(\.text).joined(separator: " ")

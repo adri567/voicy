@@ -5,59 +5,113 @@ struct MenuBarStatusView: View {
 
     var viewModel: RecordingViewModel
     @Environment(\.openWindow) private var openWindow
+    @AppStorage(Preferences.Key.onboardingCompleted) private var onboardingCompleted = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Voicy")
-                    .font(.headline)
-
-                statusIndicator
-
-                if let progress = viewModel.correctionModelProgress {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(progress > 0
-                             ? String(format: "KI-Modell: %.0f %%", progress * 100)
-                             : "KI-Modell wird geladen…")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        ProgressView(value: progress > 0 ? progress : nil)
-                            .tint(.blue)
-                    }
-                }
-
-                if viewModel.state != .loadingModel {
-                    Text("Fn gedrückt halten")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+            if onboardingCompleted {
+                readyContent
+            } else {
+                onboardingPendingContent
             }
-            .padding(16)
-
-            Divider()
-
-            Button {
-                NSApp.activate(ignoringOtherApps: true)
-                openWindow(id: MainWindowID.id)
-            } label: {
-                Label("Voicy öffnen…", systemImage: "macwindow")
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Divider()
-
-            Button("Beenden") {
-                NSApp.terminate(nil)
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(width: 220)
+    }
+
+    @ViewBuilder
+    private var readyContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Voicy")
+                .font(.headline)
+
+            statusIndicator
+
+            if let progress = viewModel.correctionModelProgress {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(progress > 0
+                         ? String(format: "KI-Modell: %.0f %%", progress * 100)
+                         : "KI-Modell wird geladen…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ProgressView(value: progress > 0 ? progress : nil)
+                        .tint(.blue)
+                }
+            }
+
+            if viewModel.state != .loadingModel {
+                Text("Fn gedrückt halten")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(16)
+
+        Divider()
+
+        Button {
+            NSApp.activate(ignoringOtherApps: true)
+            openWindow(id: MainWindowID.id)
+        } label: {
+            Label("Voicy öffnen…", systemImage: "macwindow")
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+        Divider()
+
+        Button("Beenden") {
+            NSApp.terminate(nil)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var onboardingPendingContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Voicy")
+                .font(.headline)
+
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color.yellow)
+                    .frame(width: 8, height: 8)
+                Text("Onboarding ausstehend")
+                    .font(.subheadline)
+            }
+
+            Text("Schließe das Setup ab, um Voicy zu nutzen.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(16)
+
+        Divider()
+
+        Button {
+            NSApp.activate(ignoringOtherApps: true)
+            openWindow(id: OnboardingWindowID.id)
+        } label: {
+            Label("Onboarding fortsetzen", systemImage: "arrow.right.circle")
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+        Divider()
+
+        Button("Beenden") {
+            NSApp.terminate(nil)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

@@ -1,44 +1,46 @@
 # Session Summary
 
 ## Context
-Voicy ist eine native macOS Menu Bar App (Swift 6.2 / SwiftUI, macOS 26.2+) für Voice-to-Text mit WhisperKit + Parakeet (FluidAudio) als Transcription-Engines und MLX-Swift (Gemma) für LLM-Post-Processing. Phase 1 (Mic-Pipeline), Phase 2 (Modi + Snippets + Brain + separate Transcribe-Page mit FileHistory) und Phase 3 (Diarization, mit Quality-Caveats) sind live. Diese Session: Phase-3-Commit, eine vollständige Übersicht aller offenen Themen, und ein größerer Hotkey-Refactor — von hardcoded Fn-Hold mit Mock-Settings hin zu einem **CGEventTap-basierten Fn-Capture mit Double-Tap-Toggle-Geste**.
+Voicy ist eine native macOS Menu Bar App (Swift 6.2 / SwiftUI, macOS 26.2+) für Voice-to-Text mit WhisperKit + Parakeet (FluidAudio) als Transcription-Engines und MLX-Swift (Gemma) für LLM-Post-Processing. Phase 1 (Mic-Pipeline), Phase 2 (Modi + Snippets + Brain + separate Transcribe-Page mit FileHistory) und Phase 3 (Diarization, mit Quality-Caveats) sind live. Diese Session hatte zwei Hauptthemen: (1) ein **mehrstündiger Deep-Dive zum Fn-Hotkey + Character-Viewer-Suppression**, in dem wir versucht haben, Wispr Flow's Verhalten zu replizieren — am Ende mit pragmatischer Lösung über User-System-Setting; (2) ein **Onboarding-UI-Cleanup** auf Basis von User-Feedback.
 
 ---
 
 ## Current State
 
-### Vollständig fertig + committed + gepusht
+### Vollständig fertig + im Build (aber NICHT committed/gepusht)
 
-**`21fccb0` add speaker diarization via FluidAudio LS-EEND**
-- Phase 3 (Diarization) Code aus vorheriger Session committed
-- `TranscriptionSegment.speaker: Int?`, neuer `DiarizationSegment`-Type
-- `DiarizationService` Protocol + `FluidAudioDiarizationService` Actor (LS-EEND, .cpuOnly)
-- Pipeline: parallel zur Transkription via `async let` in `TranscribeViewModel.runFullPipeline`
-- UI: Speaker-Toggle, „Speaker N"-Tags, Conversation-View, `DiarizationModelCard` in EngineView
-- Memory: `phase3_diarization.md` aktualisiert (Sortformer→LS-EEND korrigiert), neue Memory `diarization_quality_paths.md` für die drei dokumentierten Verbesserungspfade
+**Fn-Hotkey-Architektur — final:**
+- `HotkeyEventTap.swift` reduziert auf reinen **listen-only CGEventTap** (`.cgSessionEventTap`, `.listenOnly`). Keine Suppression-Versuche mehr im Code. Nur Detection von Fn-Edges via `event.flags.contains(.maskSecondaryFn)`.
+- **Gesture-State-Machine** in `AppCoordinator` neu gebaut: `idle → pendingHold → hold/toggle`. Single-Tap (< 300ms) macht NICHTS (keine Bubble, kein Recording). Hold (> 300ms) startet push-to-talk. Doppel-Fn (2 schnelle Taps) startet persistent toggle mode. Single-Fn im Toggle beendet + transkribiert.
+- `LSUIElement = YES` in pbxproj — Voicy ist jetzt Menüleisten-only ohne Dock-Icon.
+- `PermissionService.disableFnKey()` schreibt `AppleFnUsageType=0` in beide Host-Scopes (AnyHost + CurrentHost) + ruft `activateSettings -u` + `killall -HUP cfprefsd` + 4 verschiedene `NSDistributedNotification` Names.
 
-**`213d285` intercept Fn via CGEventTap, add double-tap toggle gesture**
-- `HotkeyEventTap.swift` (NEU) — CGEventTap auf `cgSessionEventTap`, schluckt Fn-Transitions damit macOS NICHT mehr den Char-Viewer öffnet. Re-enabled sich selbst bei `tapDisabledByTimeout/UserInput`. Kapselt CFRunLoop-Source, MainActor.assumeIsolated im C-Callback-Pfad.
-- `AppCoordinator` — NSEvent-flagsChanged-Monitor raus, HotkeyEventTap rein. Double-Fn-Detection (350ms Window) + Tap-Discard für Press <250ms.
-- `TranscriptionService.cancelRecording()` neu im Protocol + beide Service-Implementierungen (`DefaultTranscriptionService`, `ParakeetTranscriptionService`). Macht nur `recorder.stop()` ohne Inference, damit `state` instant auf `.idle` flippt und der zweite Double-Tap nicht durch die Race verloren geht.
-- `RecordingViewModel.discardRecording()` — nutzt jetzt das schnelle `cancelRecording()` statt des langsamen `stopAndTranscribe`.
-- `HotkeyView` — komplett zu Info-Display umgebaut. Drei Gesture-Cards (Hold / Double-tap / Fn+Arrows). Keine interaktiven Mocks mehr.
-- `HotkeyGestureCard.swift` (NEU) — Read-only-Card-Komponente.
-- `KeyboardVisualization` vereinfacht (Fn fest highlighted, kein `TriggerOption`-Parameter mehr).
-- **Gelöscht** (mit User-Confirm): `TriggerOption.swift`, `HotkeyMode.swift`, `HotkeyModeCard.swift`.
-- Alle drei `TODO(hotkey-*)`-Marker sind weg.
+**Onboarding-UI-Cleanup:**
+- `WelcomeScreen` — "Voicy Press"-Tagline raus, Footer ("ESC TO QUIT/v0.4 BETA") raus, Button auf "Begin Setup" gekürzt. Lädt AppIcon-Asset wenn vorhanden.
+- `OnboardingStep` — `.allSet` entfernt. `PracticeScreen` ist letzter Step.
+- `PracticeScreen` — nimmt `onFinish`-Callback, ruft `persistFinalChoices + onFinish` beim "Open Voicy"-Button.
+- `AllSetScreen.swift` gelöscht.
+- `AccessibilityScreen` — Mock-Liste reduziert auf nur Voicy-Zeile, mit Voicy-Icon aus AppIcon-Asset.
+- `NavFooter` in Microphone/Accessibility/FnKey — "I'll do this later"/"Deny"-Option ENTFERNT. Continue-Button `disabled` bis Permission granted.
+- `ModelScreen` / `OnboardingCatalog` — Parakeet ist jetzt Recommended (statt Whisper Small). Default-`modelID = "parakeet"`.
+- Neuer `FnKeyScreen.swift` als Onboarding-Step mit "Free up Fn key" Button + Live-Status-Polling.
 
-### Vom User noch zu verifizieren
+### Offen — DAS Hauptproblem
 
-- **Char-Viewer-Suppression:** Fn in einem Textfeld drücken sollte nicht mehr den Emoji-Picker öffnen. Falls doch → Tap-Layer wechseln auf `.cghidEventTap`.
-- **Double-Tap-Toggle:** Zwei schnelle Fn-Taps → Bubble bleibt → Fn-Single beendet.
-- **Discard-Fix:** Sehr kurzer Single-Tap → kein leeres Transkript-Paste.
+**Char-Viewer-Suppression auf macOS 26 funktioniert NICHT programmatisch.**
+- Voicy schreibt `AppleFnUsageType=0` korrekt in die Plist (verifiziert via `defaults read`).
+- Voicy-UI zeigt "Set to Do Nothing" weil unser Read den 0-Wert sieht.
+- ABER: System Settings UI zeigt weiterhin "Show Emoji & Symbols", UND Char-Viewer kommt bei Fn-Druck.
+- **HIToolbox-Daemon cached den alten Wert intern** und reagiert weder auf `activateSettings -u`, noch auf `killall -HUP cfprefsd`, noch auf irgendeine der 4 getesteten NSDistributedNotifications.
+- Apple's System Settings UI nutzt vermutlich eine **private XPC-Schnittstelle** zum HIToolbox-Daemon — die kennen wir ohne Disassembly nicht.
+- User-Statement: "Ich muss kein Logout machen wenn ich es manuell in System Settings umstelle" — also gibt es einen Weg, wir kennen ihn nur nicht.
 
-### Bekannte offene Issues (alle dokumentiert in Memory)
+### Bekannte offene Issues
 
-- **LS-EEND Diarization-Qualität mau** — drei Pfade in `diarization_quality_paths.md` (Pfad 1: `mergeSpeakers`-Smoothing; Pfad 2: Sortformer-Bug fixen; Pfad 3: Pyannote via ONNX).
-- **Whisper-File-Casing** — File-Transkription liefert lowercase ohne Punctuation. Memory `whisper_file_casing_open.md` mit Sackgassen aus letzter Session. Next-Step laut Memory: Modellwechsel auf Small/Medium statt Large-v3-quantized.
-- **Phase 3.5 Speaker-Edit** — Speaker-Namen editierbar machen via eigenes Mapping pro `FileTranscriptionEntry`.
+- Char-Viewer-Suppression (siehe oben) — User hat klar gesagt er will programmatische Lösung, akzeptiert keine Logout-Friktion.
+- Diarization-Qualität mau (`diarization_quality_paths.md`)
+- Whisper-File-Casing (`whisper_file_casing_open.md`)
+- 9 `isMock: true` Toggles in SettingsView
 
 ---
 
@@ -46,34 +48,34 @@ Voicy ist eine native macOS Menu Bar App (Swift 6.2 / SwiftUI, macOS 26.2+) für
 
 | Entscheidung | Begründung |
 |---|---|
-| Statt Fn+Ctrl → CGEventTap + Double-Fn | Fn+Ctrl war Notlösung gegen macOS-Char-Viewer-Konflikt. Wenn wir CGEventTap eh einführen, voll umbauen — Double-Fn ist die intuitivere Geste, Fn+Ctrl wäre Verkaufsnachteil ggü. Wispr Flow. |
-| `cancelRecording()` als echte Service-Methode | Statt `stopAndTranscribe()` + Result-Discard. Whisper-Inference dauert 500ms-1s, das hat die Double-Tap-Detection gebrochen — der zweite Tap kam bevor state wieder `.idle` war. Echtes Cancel ist instant. |
-| `.cgSessionEventTap` statt `.cghidEventTap` | Session-Level reicht für unsere Use-Case, braucht nur Accessibility (haben wir schon), nicht Input-Monitoring extra. Falls Char-Viewer doch durchkommt → Eskalations-Pfad auf `.cghidEventTap`. |
-| `MainActor.assumeIsolated` im CGEventTap-Callback | CFRunLoop-Callbacks auf Main-Thread sind faktisch MainActor, Swift kann's über C-Boundary nur nicht beweisen. `assumeIsolated` ist Apples empfohlener Pattern. |
-| Tap schluckt NUR Fn-Transitions | Andere Modifier (Shift, Ctrl, Cmd) dürfen passieren — sonst würden wir System-Shortcuts in anderen Apps brechen. Check: `fnDown != fnIsDown` als Edge-Detector. |
-| HotkeyView nicht konfigurierbar, sondern Info-Display | User-Entscheidung: Fn fest, keine User-Customization. Settings-Section wäre dann nur Mock — also umbauen zu Read-only-Erklärung. |
-| `discardRecording()` löscht auch `pendingTargetApp` | Damit das Target-App-Snapshot nicht in den nächsten Recording-Cycle leakt. |
+| Char-Viewer-Suppression NICHT mehr im Code, sondern via System-Setting | ~6h Code-Side-Exploration ergebnislos: `.cgSessionEventTap` + `return nil` reicht nicht auf macOS 26; `.cghidEventTap` desynced Modifier-State; Carbon RegisterEventHotKey lehnt Modifier-only ab; IOHIDManager-Seize braucht kext; CGSSetSymbolicHotKeyEnabled hat keine ID für Globe/Fn. Reverse-Engineering von Wispr (Asar-Extraction, Binary-Inspection mit `otool`, `strings`, `nm`, `r2`) zeigte: Wispr nutzt einen separaten Swift-Helper, aber auch dort kein offensichtlicher Trick. |
+| LSUIElement = YES | Voicy ist Menu Bar App, sollte kein Dock-Icon haben. Wispr's Helper macht es genauso. Außerdem Hypothese (nicht bestätigt) dass TCC sich für LSUIElement-Apps anders verhält. |
+| Gesture: Single-Tap = NICHTS | Vorher hat Single-Tap recording gestartet und beim short release wieder discarded → Bubble flackerte und manchmal blieb sie hängen wegen Tap-Race. Neue State-Machine: Bubble erscheint nur bei eindeutig hold (> 300ms) oder beim zweiten Tap eines Doppels. |
+| Parakeet als Recommended Model | User-Entscheidung. Parakeet ist schneller und englisch-fokussiert. |
+| Permissions verpflichtend (kein Skip) | User-Entscheidung. Verhindert dass User in einen halb-konfigurierten Zustand kommt. |
+| AllSetScreen entfernt | User-Entscheidung. PracticeScreen führt direkt zu "Open Voicy". |
+| `passRetained` statt `passUnretained` im Tap-Callback | Drei Reference-Implementierungen (Wispr/VoiceInk/yetone) machen alle passRetained. macOS released das Event nach Callback; `passUnretained` kann zu freed-event-Pointer führen. Verifiziert als subtiler ARC-Bug. |
+| Reverse-Engineering investiert obwohl unsicherer Ausgang | User-Direktive: "es muss eine Lösung geben". 3 parallele Recherche-Agents + lokale r2-Disassembly + Wispr-asar-Extraction. Ergebnis: bekannte Mechanismen alle widerlegt, Wispr's exakter Trick bleibt unklar. |
 
 ---
 
 ## Open Questions
 
-- **CGEventTap-Verifikation:** Funktioniert der Char-Viewer-Block tatsächlich? Falls nein → Umstieg auf `.cghidEventTap`, evtl. plus `NSInputMonitoringUsageDescription` in den INFOPLIST-Build-Settings.
-- **Diarization-Qualität:** Welcher der drei dokumentierten Pfade soll als nächstes angegangen werden? `mergeSpeakers`-Smoothing ist der billigste Probier-Step.
-- **Whisper-File-Casing:** Modellwechsel auf Small/Medium wann?
-- **Settings-Mocks aufräumen:** 9 `isMock: true` Toggles in SettingsView (Launch-at-login, MenuBar-Toggle, Sound, Audio-Input-Picker, Sensitivity, History-Toggle, Usage-Stats, Update-Channel, Smart-Punct). Reihenfolge / Priorität?
-- **Pricing + App Store vs Direct (Phase 4):** Unverändert offen.
-- **App Name:** Unverändert offen.
+- **Fn-Key-Suppression der Showstopper:** Wie löst Wispr Flow es? Unsere 4 Trigger (Plist beide Hosts + activateSettings + cfprefsd HUP + 4 NSDistributedNotifications) reichen nicht. Vermutung: private XPC zu HIToolbox-Daemon.
+- **Drei realistische Pfade noch nicht entschieden:**
+  - (A) Logout-Hinweis nach "Free up Fn key"-Klick — funktioniert garantiert, aber User-Friktion
+  - (B) AppleScript-Hack der System Settings UI öffnet und programmatisch die Dropdown ändert — fragile, kann pro macOS-Version brechen
+  - (C) Live-`sample` auf System Settings App während User manuell klickt — riskant, kann fruchtlos sein, braucht User-Mitarbeit für ~30 Sekunden Terminal
+- **Onboarding wurde nicht durchgetestet:** UI-Cleanup ist im Code, aber User muss durchklicken ob alle Screens sauber rendern, AppIcon korrekt geladen wird, etc.
 
 ---
 
 ## Next Steps
 
-1. **User testet Hotkey-Build live** — Char-Viewer-Suppression, Double-Tap-Toggle, Discard. Falls Char-Viewer doch durchkommt → `.cghidEventTap` umbauen.
-2. **Diarization-Quality angehen** — Pfad 1 (mergeSpeakers-Smoothing) als günstigste Wette, dann ggf. Pfad 2 (Sortformer-Fix).
-3. **Whisper-Casing wieder aufnehmen** — Small/Medium-Modell als Erstes testen.
-4. **Settings-Mocks ausverdrahten** — Launch-at-Login + History-Toggle sind die Low-Hanging-Fruits (echtes Preferences-Persisting), Audio-Input-Picker braucht AVAudioEngine-Code.
-5. **Updates-Pfad** — Check-for-updates / Release-Notes / Update-Channel sind komplett ungewired. Sparkle integrieren? Eigener Mini-Updater?
-6. **Phase 3.5 Speaker-Edit** — `SpeakerName`-Mapping-Struct pro `FileTranscriptionEntry`.
-7. **Phase 2 Restfeatures aus Notion** — AI Pointer (Cursor-Kontext + Voice-Command), System Actions (App/URL öffnen).
-8. **Phase 4 Produktthemen** — App Name, Pricing, App Store vs Direct, WhisperKit-Modell-Bundling-Strategie.
+1. **User-Entscheidung zum FnKey-Pfad** (A/B/C oben) einholen und implementieren.
+2. **Onboarding durchtesten** — `killall Voicy && defaults delete de.voicy.as.Voicy onboardingCompleted && open ...` und alle Screens durchklicken.
+3. **AppIcon-Asset** verifizieren — Welcome und Accessibility Screens versuchen `NSImage(named: "AppIcon")`. Falls leer, Fallback greift (RoundedRectangle mit waveform-Icon).
+4. **Wenn FnKey gelöst:** Committen + pushen. Aktueller Stand hat eine Menge ungestester Änderungen die noch nicht commited sind seit letztem Commit `8b2e8fd document Fn suppression as best-effort`.
+5. **Memory-Update** nach Fn-Lösung: `hotkey_hid_tap_required.md` reflektiert noch den vorherigen Stand mit listen-only Tap + System-Setting-Approach.
+6. **Phase 3.5 Speaker-Edit** weiter (geparkt).
+7. **Whisper-Casing** weiter (geparkt).

@@ -9,4 +9,7 @@ struct OnboardingBrain: Identifiable, Hashable {
     let quality: Int
     let body: String
     let recommended: Bool
+    /// MLX registry key understood by `MLXTextCorrectionService.install(...)`.
+    /// Must be one of `MLXTextCorrectionService.supportedRegistryKeys`.
+    let registryKey: String
 }

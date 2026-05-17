@@ -4,11 +4,11 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
     case welcome
     case microphone
     case accessibility
+    case fnKey
     case model
     case brain
     case language
     case practice
-    case allSet
 
     var id: Int { rawValue }
 
@@ -19,11 +19,11 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
         case .welcome:       return "Welcome"
         case .microphone:    return "Microphone"
         case .accessibility: return "Accessibility"
+        case .fnKey:         return "Fn key"
         case .model:         return "Voice model"
         case .brain:         return "The brain"
         case .language:      return "Language"
         case .practice:      return "First dictation"
-        case .allSet:        return "All set"
         }
     }
 
@@ -32,11 +32,11 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
         case .welcome:       return "Welcome"
         case .microphone:    return "Microphone"
         case .accessibility: return "Access"
+        case .fnKey:         return "Fn key"
         case .model:         return "Voice"
         case .brain:         return "Brain"
         case .language:      return "Language"
         case .practice:      return "First word"
-        case .allSet:        return "Ready"
         }
     }
 }

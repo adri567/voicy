@@ -43,10 +43,9 @@ struct MicrophoneScreen: View {
 
     private var footer: some View {
         NavFooter(
-            primary: state.micPermission == .granted ? "Continue →" : "Continue without →",
+            primary: "Continue →",
+            primaryDisabled: state.micPermission != .granted,
             onContinue: { state.next() },
-            secondary: state.micPermission == .granted ? nil : "Deny",
-            onSkip: state.micPermission == .granted ? nil : { state.micPermission = .denied },
             note: noteText
         )
     }
@@ -54,8 +53,8 @@ struct MicrophoneScreen: View {
     private var noteText: String {
         switch state.micPermission {
         case .granted: return "Microphone authorised"
-        case .denied:  return "You can grant access later in Settings"
-        case .idle:    return ""
+        case .denied:  return "Please enable microphone access to continue"
+        case .idle:    return "Microphone access required"
         }
     }
 
@@ -71,11 +70,87 @@ struct MicrophoneScreen: View {
             .offset(y: -30)
 
             VStack(spacing: 28) {
-                permissionDialog
+                if state.micPermission == .denied {
+                    deniedCard
+                } else {
+                    permissionDialog
+                }
                 statusPill
             }
         }
         .padding(40)
+        .task {
+            // Only ever upgrade the state to `.granted` from polling. `.denied`
+            // must only land in state via the user clicking Allow (where the
+            // request returns it explicitly) — otherwise a stale TCC denial
+            // would suppress the native prompt before the user gets a chance
+            // to ask for it.
+            while !Task.isCancelled {
+                if PermissionService.shared.currentMicrophoneState() == .granted,
+                   state.micPermission != .granted {
+                    state.micPermission = .granted
+                }
+                try? await Task.sleep(nanoseconds: 700_000_000)
+            }
+        }
+    }
+
+    private var deniedCard: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(LinearGradient(colors: [
+                        Color(red: 1.0, green: 0.973, blue: 0.91),
+                        Color(red: 0.941, green: 0.894, blue: 0.769)
+                    ], startPoint: .top, endPoint: .bottom))
+                Image(systemName: "mic.slash.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(Color(red: 0.365, green: 0.290, blue: 0.118))
+            }
+            .frame(width: 60, height: 60)
+
+            Text("Microphone access blocked")
+                .font(DS.Font.sans(14, weight: .semibold))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Color(red: 0.114, green: 0.106, blue: 0.094))
+
+            Text("macOS doesn't ask twice. Flip the Voicy toggle in System Settings → Privacy → Microphone, then return here.")
+                .font(DS.Font.sans(11))
+                .lineSpacing(3)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Color(red: 0.114, green: 0.106, blue: 0.094).opacity(0.7))
+                .padding(.horizontal, 8)
+
+            Button(action: { PermissionService.shared.openMicrophonePane() }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.up.forward.square")
+                    Text("Open System Settings")
+                }
+                .font(DS.Font.sans(13, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(
+                    Color(red: 0.039, green: 0.42, blue: 1.0).opacity(0.92),
+                    in: RoundedRectangle(cornerRadius: 6)
+                )
+            }
+            .buttonStyle(.plain)
+
+            Text("If macOS asks you to quit & reopen Voicy, accept — onboarding resumes automatically.")
+                .font(DS.Font.mono(10))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Color(red: 0.114, green: 0.106, blue: 0.094).opacity(0.55))
+                .padding(.horizontal, 8)
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 18)
+        .frame(width: 360)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(red: 0.961, green: 0.953, blue: 0.933).opacity(0.96))
+        )
+        .shadow(color: .black.opacity(0.28), radius: 30, y: 20)
     }
 
     private var permissionDialog: some View {
@@ -148,7 +223,6 @@ struct MicrophoneScreen: View {
                 .fill(Color(red: 0.961, green: 0.953, blue: 0.933).opacity(0.96))
         )
         .shadow(color: .black.opacity(0.28), radius: 30, y: 20)
-        .opacity(state.micPermission == .denied ? 0.55 : 1)
     }
 
     @ViewBuilder

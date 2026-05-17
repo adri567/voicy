@@ -1,3 +1,4 @@
+import FactoryKit
 import Foundation
 import Observation
 
@@ -11,16 +12,19 @@ final class OnboardingState {
     // Permission state
     var micPermission: PermissionState = .idle
     var a11yPermission: PermissionState = .idle
+    var fnKeyState: PermissionState = .idle
 
     // Selections
-    var modelID: String = "small"
+    var modelID: String = "parakeet"
     var modelDownload: Double = 0  // 0…100
     var modelDownloadError: String? = nil
     var brainID: String? = nil
     var brainDownload: Double = 0
+    var brainDownloadError: String? = nil
     var languageCode: String = "en"
 
     private var modelDownloadTask: Task<Void, Never>? = nil
+    private var brainDownloadTask: Task<Void, Never>? = nil
 
     // Preferences
     var clickSounds: Bool = true
@@ -49,15 +53,26 @@ final class OnboardingState {
     // MARK: - Model download
 
     /// Cancels any in-flight download and starts a new one for `model`.
-    /// If the model is already installed, jumps straight to 100%.
+    /// If the model is already installed, jumps straight to 100% and warms
+    /// the singleton service so the practice screen has it loaded.
     func selectAndDownloadModel(_ model: OnboardingModel) {
         modelDownloadTask?.cancel()
         modelID = model.id
         modelDownloadError = nil
 
-        // Already on disk? Skip the download.
+        // Persist the engine choice up-front so `TranscriptionEngine.current`
+        // already reflects this model before the practice screen wires up
+        // recording. Without this the RecordingViewModel resolves the
+        // wrong engine and falls back to the previous (or default) one.
+        Self.persistEngineChoice(model)
+
+        // Already on disk? Skip the download, but still warm the singleton.
         if isModelInstalled(model) {
             modelDownload = 100
+            modelDownloadTask = Task { @MainActor [weak self] in
+                try? await Self.loadAfterInstall(model)
+                _ = self
+            }
             return
         }
 
@@ -72,9 +87,12 @@ final class OnboardingState {
                         self.modelDownload = max(self.modelDownload, min(99, progress * 100))
                     }
                 }
-                if !Task.isCancelled, self?.modelID == model.id {
-                    self?.modelDownload = 100
-                }
+                guard !Task.isCancelled, self?.modelID == model.id else { return }
+                // Load the just-downloaded files into the app's singleton
+                // service so the user doesn't pay the load cost on their
+                // first Fn-press in the practice screen.
+                try? await Self.loadAfterInstall(model)
+                self?.modelDownload = 100
             } catch is CancellationError {
                 // Picker moved on — no-op.
             } catch {
@@ -85,11 +103,78 @@ final class OnboardingState {
         }
     }
 
+    private static func persistEngineChoice(_ model: OnboardingModel) {
+        let d = UserDefaults.standard
+        d.set(model.engine.rawValue, forKey: Preferences.Key.transcriptionEngine)
+        switch model.engine {
+        case .whisper:  d.set(model.realID, forKey: Preferences.Key.whisperModelID)
+        case .parakeet: d.set(model.realID, forKey: Preferences.Key.parakeetVersion)
+        }
+    }
+
+    /// Warms the app's singleton service for `model.engine` — pulls the
+    /// just-downloaded files off disk into RAM so the next `startRecording`
+    /// is immediate. Static install builds a throwaway instance; the singleton
+    /// the ViewModel uses has its own cache that needs to be primed.
+    private static func loadAfterInstall(_ model: OnboardingModel) async throws {
+        switch model.engine {
+        case .whisper:
+            try await Container.shared.whisperTranscriptionService().loadModel()
+        case .parakeet:
+            try await Container.shared.parakeetTranscriptionService().loadModel()
+        }
+    }
+
     private func isModelInstalled(_ model: OnboardingModel) -> Bool {
         switch model.engine {
         case .whisper:  return DefaultTranscriptionService.isInstalled(modelID: model.realID)
         case .parakeet: return ParakeetTranscriptionService.isInstalled(version: model.realID)
         }
+    }
+
+    // MARK: - Brain download
+
+    /// Cancels any in-flight brain download and starts a new one for `brain`.
+    /// If the brain is already installed, jumps straight to 100%.
+    func selectAndDownloadBrain(_ brain: OnboardingBrain) {
+        brainDownloadTask?.cancel()
+        brainID = brain.id
+        brainDownloadError = nil
+
+        if MLXTextCorrectionService.isInstalled(registryKey: brain.registryKey) {
+            brainDownload = 100
+            return
+        }
+
+        brainDownload = 0
+        brainDownloadTask = Task { @MainActor [weak self] in
+            do {
+                try await MLXTextCorrectionService.install(registryKey: brain.registryKey) { fraction in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        guard self.brainID == brain.id else { return }
+                        self.brainDownload = max(self.brainDownload, min(99, fraction * 100))
+                    }
+                }
+                if !Task.isCancelled, self?.brainID == brain.id {
+                    self?.brainDownload = 100
+                }
+            } catch is CancellationError {
+                // Picker moved on — no-op.
+            } catch {
+                if self?.brainID == brain.id {
+                    self?.brainDownloadError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// Clears any picked brain, cancels its download, resets progress.
+    func clearBrainSelection() {
+        brainDownloadTask?.cancel()
+        brainID = nil
+        brainDownload = 0
+        brainDownloadError = nil
     }
 
     private static func install(_ model: OnboardingModel,
@@ -120,8 +205,15 @@ final class OnboardingState {
 
     init() {
         let d = UserDefaults.standard
-        micPermission = PermissionService.shared.currentMicrophoneState()
+        // Mic: read lazily. We only seed `.granted` if TCC already says so
+        // (returning user). For a fresh user we stay `.idle` so the very
+        // first Allow-click can trigger the native system prompt instead of
+        // landing on a stale `.denied` from an earlier session that would
+        // suppress the prompt entirely.
+        let micNow = PermissionService.shared.currentMicrophoneState()
+        micPermission = (micNow == .granted) ? .granted : .idle
         a11yPermission = PermissionService.shared.currentAccessibilityState()
+        fnKeyState = PermissionService.shared.currentFnKeyState()
         if let lang = d.string(forKey: Preferences.Key.sourceLanguageCode) {
             languageCode = lang
         }
@@ -134,6 +226,11 @@ final class OnboardingState {
         // If the default model is already on disk, show it as ready.
         if isModelInstalled(pickedModel) {
             modelDownload = 100
+        }
+        // If a previously-selected brain is already on disk, mirror that.
+        if let brain = pickedBrain,
+           MLXTextCorrectionService.isInstalled(registryKey: brain.registryKey) {
+            brainDownload = 100
         }
     }
 
@@ -152,6 +249,11 @@ final class OnboardingState {
         switch m.engine {
         case .whisper:  d.set(m.realID, forKey: Preferences.Key.whisperModelID)
         case .parakeet: d.set(m.realID, forKey: Preferences.Key.parakeetVersion)
+        }
+
+        // Brain (optional). Only persist if the user actually picked one.
+        if let brain = pickedBrain {
+            d.set(brain.registryKey, forKey: Preferences.Key.llmRegistryKey)
         }
     }
 }

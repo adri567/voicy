@@ -5,6 +5,22 @@ private let practiceSentence =
 
 struct PracticeScreen: View {
     @Bindable var state: OnboardingState
+    let viewModel: RecordingViewModel?
+    let onFinish: () -> Void
+
+    @FocusState private var noteFocus: Bool
+
+    private var liveState: RecordingViewModel.RecordingState {
+        viewModel?.state ?? .idle
+    }
+
+    private var isRecording: Bool { liveState == .recording }
+    private var isTranscribing: Bool {
+        liveState == .transcribing || liveState == .correcting
+    }
+    private var hasResult: Bool {
+        !state.practiceText.isEmpty && liveState == .idle
+    }
 
     var body: some View {
         ScreenShell(
@@ -65,15 +81,25 @@ struct PracticeScreen: View {
     }
 
     private var footer: some View {
-        let done = state.practicePhase == .done
-        let recording = state.practicePhase == .recording
+        let note: String = {
+            if isRecording { return "● Listening…" }
+            if isTranscribing { return "… transcribing" }
+            if hasResult { return "✓ Dictation succeeded" }
+            return ""
+        }()
         return NavFooter(
-            primary: done ? "Wonderful — Continue →" : "Continue →",
-            primaryDisabled: !done,
-            onContinue: { state.next() },
-            secondary: done ? nil : "Skip practice",
-            onSkip: done ? nil : { state.next() },
-            note: recording ? "● Listening…" : (done ? "✓ Dictation succeeded" : "")
+            primary: "Open Voicy →",
+            primaryDisabled: false,
+            onContinue: {
+                state.persistFinalChoices()
+                onFinish()
+            },
+            secondary: hasResult ? nil : "Skip practice",
+            onSkip: hasResult ? nil : {
+                state.persistFinalChoices()
+                onFinish()
+            },
+            note: note
         )
     }
 
@@ -107,81 +133,75 @@ struct PracticeScreen: View {
             MetaLabel(text: "On real Voicy, your words paste into whichever app has focus. Here, into this notepad.")
         }
         .padding(36)
-        .task(id: state.practicePhase) {
-            // Animate the demo transcription character-by-character.
-            guard state.practicePhase == .recording else { return }
+        .onAppear {
+            // Start with an empty notepad each time the user lands on this
+            // screen and grab focus so Voicy's Cmd+V paste lands here.
             state.practiceText = ""
-            for i in 0..<practiceSentence.count {
-                try? await Task.sleep(nanoseconds: 22_000_000)
-                if Task.isCancelled { break }
-                state.practiceText = String(practiceSentence.prefix(i + 1))
-            }
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            if !Task.isCancelled, state.practicePhase == .recording {
-                state.practicePhase = .done
+            viewModel?.clearTranscript()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                noteFocus = true
             }
         }
     }
 
     @ViewBuilder
     private var noteBody: some View {
-        let textColor = DS.Palette.ink
-        if state.practicePhase == .idle {
-            Text("your words will appear here…")
-                .font(DS.Font.serifItalic(15))
-                .foregroundStyle(DS.Palette.ink3)
-                .lineSpacing(5)
-        } else {
-            HStack(alignment: .firstTextBaseline, spacing: 0) {
-                Text(state.practiceText)
-                    .font(DS.Font.serif(15))
+        // Editable text field — Voicy pastes via Cmd+V, which only lands in
+        // the focused responder, so this needs to be a real input control.
+        // The placeholder is overlaid manually because TextEditor doesn't
+        // support prompts on macOS.
+        ZStack(alignment: .topLeading) {
+            if state.practiceText.isEmpty {
+                Text("your words will appear here…")
+                    .font(DS.Font.serifItalic(15))
+                    .foregroundStyle(DS.Palette.ink3)
                     .lineSpacing(5)
-                    .foregroundStyle(textColor)
-                if state.practicePhase != .done {
-                    Rectangle()
-                        .fill(DS.Palette.accent)
-                        .frame(width: 2, height: 18)
-                        .offset(x: 2)
-                }
-                Spacer(minLength: 0)
+                    .padding(.top, 6)
+                    .padding(.leading, 4)
+                    .allowsHitTesting(false)
             }
+            TextEditor(text: $state.practiceText)
+                .font(DS.Font.serif(15))
+                .lineSpacing(5)
+                .foregroundStyle(DS.Palette.ink)
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
+                .focused($noteFocus)
         }
     }
 
     private var dictateButton: some View {
-        Button(action: {
-            if state.practicePhase == .idle || state.practicePhase == .done {
-                state.practicePhase = .recording
-            }
-        }) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(state.practicePhase == .recording ? DS.Palette.accentInk : Color(red: 1.0, green: 0.357, blue: 0.227))
-                    .frame(width: 9, height: 9)
-                Group {
-                    switch state.practicePhase {
-                    case .recording:
-                        Text("Listening · \(min(30, state.practiceText.count / 9))s")
-                            .font(DS.Font.mono(11))
-                    case .done:
-                        Text("Done — tap to try again")
-                            .font(DS.Font.mono(11))
-                    case .idle:
-                        HStack(spacing: 6) {
-                            Text("Hold").font(DS.Font.sans(12, weight: .medium))
-                            OnboardingKbd(label: "fn", dark: true)
-                            Text("to dictate").font(DS.Font.sans(12, weight: .medium))
-                        }
+        // Read-only status indicator. Recording is driven entirely by the
+        // global Fn hotkey — the user is meant to actually practice the
+        // gesture here, not click a button.
+        HStack(spacing: 12) {
+            Circle()
+                .fill(isRecording ? DS.Palette.accentInk : Color(red: 1.0, green: 0.357, blue: 0.227))
+                .frame(width: 9, height: 9)
+            Group {
+                if isRecording {
+                    Text("Listening…")
+                        .font(DS.Font.mono(11))
+                } else if isTranscribing {
+                    Text("Transcribing…")
+                        .font(DS.Font.mono(11))
+                } else if hasResult {
+                    Text("Done — hold Fn to try again")
+                        .font(DS.Font.mono(11))
+                } else {
+                    HStack(spacing: 6) {
+                        Text("Hold").font(DS.Font.sans(12, weight: .medium))
+                        OnboardingKbd(label: "fn", dark: true)
+                        Text("to dictate").font(DS.Font.sans(12, weight: .medium))
                     }
                 }
-                .foregroundStyle(state.practicePhase == .recording ? DS.Palette.accentInk : DS.Palette.paper)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                Capsule().fill(state.practicePhase == .recording ? DS.Palette.accent : DS.Palette.ink)
-            )
+            .foregroundStyle(isRecording ? DS.Palette.accentInk : DS.Palette.paper)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            Capsule().fill(isRecording ? DS.Palette.accent : DS.Palette.ink)
+        )
     }
 }

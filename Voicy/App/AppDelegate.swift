@@ -12,17 +12,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+
+        let onboardingDone = UserDefaults.standard.bool(forKey: Preferences.Key.onboardingCompleted)
+
+        // Spin up the recording stack regardless of onboarding state. setup()
+        // is idempotent and no longer triggers permission prompts — the
+        // PracticeScreen relies on this so the user can really test Fn-hold
+        // before completing the onboarding.
         MainActor.assumeIsolated { self.coordinator.setup() }
         Task { @MainActor in
             await self.coordinator.viewModel.onAppear()
             print("[Voicy] App gestartet — Hotkey: Fn")
         }
 
-        let onboardingDone = UserDefaults.standard.bool(forKey: Preferences.Key.onboardingCompleted)
-        let firstLaunchDone = UserDefaults.standard.bool(forKey: Preferences.Key.firstLaunchCompleted)
-
         if !onboardingDone {
-            // Close the auto-opened MainWindow and bring Onboarding to the front.
+            // Close the auto-opened MainWindow and bring Onboarding to the
+            // front. SwiftUI opens the first declared Window on launch, which
+            // is MainWindow — we swap it for Onboarding until setup is done.
             DispatchQueue.main.async {
                 NSApp.windows
                     .first(where: { $0.identifier?.rawValue == MainWindowID.id })?
@@ -30,20 +36,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.windows
                     .first(where: { $0.identifier?.rawValue == OnboardingWindowID.id })?
                     .makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
             }
-        } else if firstLaunchDone {
-            NSApp.windows
-                .first(where: { $0.identifier?.rawValue == MainWindowID.id })?
-                .close()
-        } else {
-            UserDefaults.standard.set(true, forKey: Preferences.Key.firstLaunchCompleted)
+        }
+    }
+
+    /// Invoked by the onboarding host once the user finishes setup. setup()
+    /// is idempotent. The model warm-up is forced (`reloadActiveModel`) because
+    /// the engine may have just changed during onboarding and the launch-time
+    /// `onAppear` likely ran with the old engine + no model on disk.
+    @MainActor
+    func onboardingFinished() {
+        coordinator.setup()
+        Task { @MainActor in
+            await self.coordinator.viewModel.reloadActiveModel()
+            print("[Voicy] Onboarding abgeschlossen — Hotkey: Fn")
         }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag,
-           let main = NSApp.windows.first(where: { $0.identifier?.rawValue == MainWindowID.id }) {
-            main.makeKeyAndOrderFront(nil)
+        guard !flag else { return true }
+        let onboardingDone = UserDefaults.standard.bool(forKey: Preferences.Key.onboardingCompleted)
+        let targetID = onboardingDone ? MainWindowID.id : OnboardingWindowID.id
+        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == targetID }) {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
         }
         return true
     }

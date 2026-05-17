@@ -2,12 +2,11 @@ import SwiftUI
 
 struct OnboardingView: View {
     @State private var state = OnboardingState()
+    let viewModel: RecordingViewModel?
     let onFinish: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            OnboardingChrome(state: state)
-
             screen
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(DS.Palette.paper)
@@ -27,6 +26,7 @@ struct OnboardingView: View {
             // Refresh permission state on launch
             state.micPermission = PermissionService.shared.currentMicrophoneState()
             state.a11yPermission = PermissionService.shared.currentAccessibilityState()
+            state.fnKeyState = PermissionService.shared.currentFnKeyState()
         }
     }
 
@@ -36,11 +36,11 @@ struct OnboardingView: View {
         case .welcome:       WelcomeScreen(state: state)
         case .microphone:    MicrophoneScreen(state: state)
         case .accessibility: AccessibilityScreen(state: state)
+        case .fnKey:         FnKeyScreen(state: state)
         case .model:         ModelScreen(state: state)
         case .brain:         BrainScreen(state: state)
         case .language:      LanguageScreen(state: state)
-        case .practice:      PracticeScreen(state: state)
-        case .allSet:        AllSetScreen(state: state, onFinish: onFinish)
+        case .practice:      PracticeScreen(state: state, viewModel: viewModel, onFinish: onFinish)
         }
     }
 }

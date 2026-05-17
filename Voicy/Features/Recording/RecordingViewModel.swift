@@ -15,8 +15,15 @@ final class RecordingViewModel {
         case noBrain
     }
 
-    @ObservationIgnored
-    @Injected(\.transcriptionService) private var service
+    /// Resolved fresh on every access. We deliberately do *not* use
+    /// `@Injected`, which would cache the service picked at ViewModel-init
+    /// time — i.e. before the user has chosen an engine in onboarding. This
+    /// way `TranscriptionEngine.current` is re-read whenever we need the
+    /// service, so a Whisper→Parakeet switch (or vice versa) is picked up
+    /// without an app relaunch.
+    private var service: any TranscriptionService {
+        Container.shared.transcriptionService()
+    }
 
     @ObservationIgnored
     @Injected(\.textCorrectionService) private var correctionService
@@ -47,8 +54,30 @@ final class RecordingViewModel {
     @ObservationIgnored private var levelTask: Task<Void, Never>?
     @ObservationIgnored private var pendingTargetApp: TargetAppSnapshot?
 
+    /// Flipped to true when the user releases the hotkey before a recording
+    /// session has actually started (i.e. while we're still inside the
+    /// `startRecording` async pipeline waiting on `loadModel`). Each `await`
+    /// resumption point in `startRecording` re-checks this and bails — without
+    /// it, the bubble could flip to .recording *after* the user has let go.
+    @ObservationIgnored private var startCanceled: Bool = false
+
+    /// Guards against re-entering `startRecording` while a previous invocation
+    /// is still suspended (most commonly inside `await service.loadModel()`).
+    /// Without this, a second press during model load would reset
+    /// `startCanceled` and let the orphaned first invocation finish into
+    /// `.recording`, leaving the bubble stranded.
+    @ObservationIgnored private var startInProgress: Bool = false
+
     func captureTargetApp(_ snapshot: TargetAppSnapshot?) {
         pendingTargetApp = snapshot
+    }
+
+    /// Drops any previously-loaded model state and re-runs `onAppear`. Used
+    /// after onboarding finishes — at that point the engine may have just
+    /// switched and a model that wasn't on disk at launch is now installed.
+    func reloadActiveModel() async {
+        state = .loadingModel
+        await onAppear()
     }
 
     func onAppear() async {
@@ -112,6 +141,11 @@ final class RecordingViewModel {
     }
 
     private func startRecording() async {
+        guard !startInProgress else { return }
+        startInProgress = true
+        defer { startInProgress = false }
+        startCanceled = false
+
         // Pre-flight: nothing to record into if there's no voice model yet.
         guard service.isModelInstalled() else {
             showNoModelHint()
@@ -123,6 +157,7 @@ final class RecordingViewModel {
         // First attempt — works when the model is already in RAM.
         do {
             try await service.startRecording()
+            if await bailIfCanceled() { return }
             beginLevelTracking()
             state = .recording
             return
@@ -138,13 +173,35 @@ final class RecordingViewModel {
         state = .loadingModel
         do {
             try await service.loadModel()
+            if await bailIfCanceled() { return }
             try await service.startRecording()
+            if await bailIfCanceled() { return }
             beginLevelTracking()
             state = .recording
         } catch {
             print("[RecordingViewModel] Lazy load + start failed: \(error)")
             showNoModelHint()
         }
+    }
+
+    /// Returns true (and tears down anything we started) if the user
+    /// released the hotkey while we were suspended in the start pipeline.
+    private func bailIfCanceled() async -> Bool {
+        guard startCanceled else { return false }
+        await service.cancelRecording()
+        state = .idle
+        return true
+    }
+
+    /// Called by AppCoordinator when the user releases the hotkey while we
+    /// are still in the `startRecording` pipeline (state == .loadingModel
+    /// after a `modelNotLoaded` retry). Sets a flag the pipeline checks at
+    /// every resumption point, and flips the UI back to idle immediately so
+    /// the bubble doesn't visibly hang on a now-orphaned load.
+    func cancelStartIfPending() {
+        guard state == .loadingModel else { return }
+        startCanceled = true
+        state = .idle
     }
 
     /// Runs the LLM correction with a lazy-load fallback: if the brain hasn't
@@ -208,7 +265,7 @@ final class RecordingViewModel {
         state = .transcribing
         await Task.yield()
         do {
-            let result = try await service.stopAndTranscribe()
+            let result = try await service.stopAndTranscribe(language: sourceLanguage.code)
             var didCorrect = false
             var brainMissing = false
             var finalText = result.text

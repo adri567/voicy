@@ -56,10 +56,9 @@ struct AccessibilityScreen: View {
     private var footer: some View {
         NavFooter(
             primary: "Continue →",
+            primaryDisabled: state.a11yPermission != .granted,
             onContinue: { state.next() },
-            secondary: state.a11yPermission == .granted ? nil : "I'll do this later",
-            onSkip: state.a11yPermission == .granted ? nil : { state.next() },
-            note: state.a11yPermission == .granted ? "Permission granted" : ""
+            note: state.a11yPermission == .granted ? "Permission granted" : "Accessibility access required"
         )
     }
 
@@ -89,11 +88,7 @@ struct AccessibilityScreen: View {
                 }
 
                 VStack(spacing: 0) {
-                    a11yRow(name: "Raycast", on: true, color: Color(red: 0.91, green: 0.27, blue: 0.27))
-                    a11yRow(name: "Rectangle", on: true, color: Color(red: 0.165, green: 0.541, blue: 0.282))
-                    a11yRow(name: "Voicy", on: state.a11yPermission == .granted, color: DS.Palette.ink, highlight: true)
-                    a11yRow(name: "Karabiner-Elements", on: true, color: Color(red: 0.231, green: 0.290, blue: 0.549))
-                    a11yRow(name: "AltTab", on: false, color: Color(red: 0.612, green: 0.420, blue: 0.122))
+                    a11yRow(name: "Voicy", on: state.a11yPermission == .granted, highlight: true)
                 }
             }
             .background(DS.Palette.paper, in: RoundedRectangle(cornerRadius: 14))
@@ -143,11 +138,17 @@ struct AccessibilityScreen: View {
         }
     }
 
-    private func a11yRow(name: String, on: Bool, color: Color, highlight: Bool = false) -> some View {
+    private func a11yRow(name: String, on: Bool, highlight: Bool = false) -> some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 6)
-                .fill(color)
-                .frame(width: 26, height: 26)
+            if let appIcon = NSImage(named: "AppIcon") {
+                Image(nsImage: appIcon)
+                    .resizable()
+                    .frame(width: 26, height: 26)
+            } else {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(DS.Palette.ink)
+                    .frame(width: 26, height: 26)
+            }
             HStack(spacing: 8) {
                 Text(name)
                     .font(DS.Font.sans(13, weight: highlight ? .semibold : .medium))

@@ -42,15 +42,16 @@ actor ParakeetTranscriptionService: TranscriptionService {
         try recorder.start()
     }
 
-    func stopAndTranscribe() async throws -> TranscriptionResult {
+    func stopAndTranscribe(language: String) async throws -> TranscriptionResult {
         guard let manager = asrManager else { throw TranscriptionError.noActiveRecording }
 
         let (samples, duration) = recorder.stop()
         guard !samples.isEmpty else { throw TranscriptionError.noAudioCaptured }
 
-        print("[Parakeet] Transcribing \(samples.count) samples (\(String(format: "%.1f", Double(samples.count) / 16000.0))s)…")
+        let lang: Language = Language(rawValue: language) ?? .german
+        print("[Parakeet] Transcribing \(samples.count) samples (\(String(format: "%.1f", Double(samples.count) / 16000.0))s), language=\(language)…")
         var decoderState = TdtDecoderState.make()
-        let result = try await manager.transcribe(samples, decoderState: &decoderState, language: .german)
+        let result = try await manager.transcribe(samples, decoderState: &decoderState, language: lang)
         let text = result.text.trimmingCharacters(in: .whitespaces)
         print("[Parakeet] Done: \"\(text)\"")
         return TranscriptionResult(text: text, duration: duration)

@@ -28,15 +28,28 @@ struct ModelScreen: View {
 
     private var footer: some View {
         let ready = state.modelDownload >= 100
-        let primary: String = ready
-            ? "Continue →"
-            : "Continue (downloading \(state.pickedModel.label)) →"
-        let note: String = ready
-            ? "\(state.pickedModel.family) \(state.pickedModel.label) ready"
-            : "\(Int(state.modelDownload))% of \(state.pickedModel.displaySize)"
+        let downloading = state.modelDownload > 0 && !ready
+        let primary: String = {
+            if ready { return "Continue →" }
+            if downloading { return "Downloading \(state.pickedModel.label) — \(Int(state.modelDownload))%" }
+            return "Download \(state.pickedModel.label) (\(state.pickedModel.displaySize))"
+        }()
+        let note: String = {
+            if let err = state.modelDownloadError { return "Error: \(err)" }
+            if ready { return "\(state.pickedModel.family) \(state.pickedModel.label) ready" }
+            if downloading { return "\(Int(state.modelDownload))% of \(state.pickedModel.displaySize)" }
+            return "Click to fetch \(state.pickedModel.family) \(state.pickedModel.label)"
+        }()
         return NavFooter(
             primary: primary,
-            onContinue: { state.next() },
+            primaryDisabled: downloading,
+            onContinue: {
+                if ready {
+                    state.next()
+                } else {
+                    state.selectAndDownloadModel(state.pickedModel)
+                }
+            },
             note: note
         )
     }

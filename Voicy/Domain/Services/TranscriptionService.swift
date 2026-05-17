@@ -3,7 +3,10 @@ import Foundation
 protocol TranscriptionService: Sendable {
     nonisolated func loadModel() async throws
     nonisolated func startRecording() async throws
-    nonisolated func stopAndTranscribe() async throws -> TranscriptionResult
+    /// Stops the live recording and runs inference. The active source language
+    /// is passed in so the engine doesn't have to guess (and doesn't fall back
+    /// to a hardcoded default). ISO code, e.g. `"de"`, `"en"`.
+    nonisolated func stopAndTranscribe(language: String) async throws -> TranscriptionResult
     /// Stops the active recording without running inference. Samples are
     /// dropped. Used when the user's tap was too short to be meaningful
     /// (double-tap first half, accidental brush) — instant return, so the

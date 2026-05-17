@@ -1,13 +1,13 @@
 import AppKit
 import Foundation
 
-/// Low-level CGEventTap that observes the Fn modifier globally.
+/// Low-level CGEventTap that observes the Fn modifier globally and fires
+/// `onFnPress` / `onFnRelease` callbacks on edge transitions.
 ///
-/// Tries to swallow the event (return `nil`) on Fn transitions so the
-/// system Character Viewer never opens — but `.cgSessionEventTap` fires
-/// after macOS has already routed Fn to its system handler on modern
-/// versions, so the picker may still appear. Hotkey detection works
-/// reliably regardless; suppression is best-effort.
+/// Does NOT try to suppress the system Character Viewer. macOS triggers
+/// the Character Viewer on Fn based on the `AppleFnUsageType` HIToolbox
+/// preference. Voicy's onboarding asks the user to set that to "Do
+/// Nothing" — once that's done, no suppression is needed.
 @MainActor
 final class HotkeyEventTap {
 
@@ -28,7 +28,7 @@ final class HotkeyEventTap {
         let selfPointer = Unmanaged.passUnretained(self).toOpaque()
 
         let callback: CGEventTapCallBack = { _, type, event, refcon in
-            guard let refcon else { return Unmanaged.passUnretained(event) }
+            guard let refcon else { return Unmanaged.passRetained(event) }
             let owner = Unmanaged<HotkeyEventTap>.fromOpaque(refcon).takeUnretainedValue()
             return owner.handleFromCallback(type: type, event: event)
         }
@@ -36,7 +36,7 @@ final class HotkeyEventTap {
         guard let newTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
-            options: .defaultTap,
+            options: .listenOnly,
             eventsOfInterest: mask,
             callback: callback,
             userInfo: selfPointer
@@ -75,37 +75,31 @@ final class HotkeyEventTap {
     /// callback boundary. We assume MainActor isolation explicitly.
     nonisolated private func handleFromCallback(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            // System suspended us (typical when our callback was slow). Just
-            // re-enable and let this particular event through.
             MainActor.assumeIsolated {
                 if let tap = self.tap {
                     CGEvent.tapEnable(tap: tap, enable: true)
                 }
             }
-            return Unmanaged.passUnretained(event)
+            return Unmanaged.passRetained(event)
         }
         guard type == .flagsChanged else {
-            return Unmanaged.passUnretained(event)
+            return Unmanaged.passRetained(event)
         }
 
         let fnDown = event.flags.contains(.maskSecondaryFn)
-        let isFnTransition = MainActor.assumeIsolated {
+        MainActor.assumeIsolated {
             self.dispatchTransition(fnDown: fnDown)
         }
-        // Best-effort: swallow Fn transitions so other apps don't see them.
-        // The system Character Viewer may still trigger on macOS 14+ because
-        // .cgSessionEventTap runs after that routing decision.
-        return isFnTransition ? nil : Unmanaged.passUnretained(event)
+        return Unmanaged.passRetained(event)
     }
 
-    private func dispatchTransition(fnDown: Bool) -> Bool {
-        guard fnDown != fnIsDown else { return false }
+    private func dispatchTransition(fnDown: Bool) {
+        guard fnDown != fnIsDown else { return }
         fnIsDown = fnDown
         if fnDown {
             onFnPress?()
         } else {
             onFnRelease?()
         }
-        return true
     }
 }

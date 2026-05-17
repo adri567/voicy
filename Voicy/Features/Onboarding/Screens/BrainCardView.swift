@@ -4,6 +4,7 @@ struct BrainCardView: View {
     let brain: OnboardingBrain
     let picked: Bool
     let dlPct: Double?
+    let errorText: String?
     let onPick: () -> Void
 
     var body: some View {
@@ -54,6 +55,11 @@ struct BrainCardView: View {
                     }
                     .font(DS.Font.mono(10))
                     .foregroundStyle(DS.Palette.ink3)
+                }
+                if let errorText {
+                    Text(errorText)
+                        .font(DS.Font.mono(10))
+                        .foregroundStyle(Color(red: 0.78, green: 0.22, blue: 0.18))
                 }
             }
             .padding(.horizontal, 20)

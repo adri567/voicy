@@ -11,7 +11,16 @@ final class DefaultPasteService: PasteService {
         pb.clearContents()
         pb.setString(text, forType: .string)
         postCmdV()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        // Restore the user's previous clipboard *after* the paste has had time
+        // to land in the target app. 300 ms was too tight — slow apps (Chrome,
+        // some Electron clients) sometimes processed the Cmd+V *after* we'd
+        // already restored, so the user got their old clipboard pasted instead
+        // of the transcript. 1.2 s is a comfortable margin.
+        //
+        // Additionally, only restore if our text is still on the clipboard.
+        // If the user copied something else in the meantime, leave it alone.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            guard pb.string(forType: .string) == text else { return }
             pb.clearContents()
             if let saved { pb.setString(saved, forType: .string) }
         }

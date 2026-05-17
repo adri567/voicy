@@ -5,25 +5,22 @@ struct WelcomeScreen: View {
 
     var body: some View {
         ZStack {
-            // Faint center rule
-            Rectangle()
-                .fill(DS.Palette.ruleSoft)
-                .frame(width: 1)
-                .padding(.vertical, 60)
-
             VStack(spacing: 0) {
-                MetaLabel(text: "◆ The Voicy Press — Established 2026", color: DS.Palette.accent)
-                    .padding(.bottom, 22)
-
                 HStack(spacing: 16) {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(DS.Palette.ink)
-                        .frame(width: 44, height: 44)
-                        .overlay(
-                            Image(systemName: "waveform")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(DS.Palette.accentInk)
-                        )
+                    if let appIcon = NSImage(named: "AppIcon") {
+                        Image(nsImage: appIcon)
+                            .resizable()
+                            .frame(width: 44, height: 44)
+                    } else {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(DS.Palette.ink)
+                            .frame(width: 44, height: 44)
+                            .overlay(
+                                Image(systemName: "waveform")
+                                    .font(.system(size: 22, weight: .medium))
+                                    .foregroundStyle(DS.Palette.accentInk)
+                            )
+                    }
                     Text("Voicy")
                         .font(.system(size: 56, weight: .semibold))
                         .tracking(-1.96)
@@ -50,22 +47,10 @@ struct WelcomeScreen: View {
                     .frame(maxWidth: 560)
                     .padding(.top, 22)
 
-                PrimaryButton(title: "Begin setup — takes 2 minutes →") {
+                PrimaryButton(title: "Begin Setup") {
                     state.next()
                 }
                 .padding(.top, 38)
-
-                HStack(spacing: 22) {
-                    Text("↑↓ ←→ TO NAVIGATE")
-                    Text("·")
-                    Text("ESC TO QUIT")
-                    Text("·")
-                    Text("v0.4 BETA")
-                }
-                .font(DS.Font.mono(9))
-                .tracking(1.2)
-                .foregroundStyle(DS.Palette.ink3)
-                .padding(.top, 40)
             }
             .padding(.horizontal, 80)
         }

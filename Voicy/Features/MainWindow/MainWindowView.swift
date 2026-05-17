@@ -35,6 +35,14 @@ struct MainWindowView: View {
             .toolbar(removing: .title)
             .toolbarBackground(.hidden, for: .windowToolbar)
         }
+        .task {
+            // Idempotent: viewModel.onAppear() guards on state == .loadingModel,
+            // so it's a no-op if the AppDelegate / onboardingFinished path
+            // already kicked off the load. This .task is the safety net for
+            // the case where the model warm-up didn't get scheduled (e.g.
+            // window opens before the AppDelegate hook fires).
+            await viewModel.onAppear()
+        }
     }
 
     private var sidebarHelp: String {

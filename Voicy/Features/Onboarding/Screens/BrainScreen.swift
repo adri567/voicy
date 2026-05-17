@@ -61,23 +61,23 @@ struct BrainScreen: View {
 
     private var footer: some View {
         let picked = state.pickedBrain
+        let downloading = picked != nil && state.brainDownload < 100
         let primary: String = {
             if picked == nil { return "Continue without a brain →" }
             if state.brainDownload >= 100 { return "Continue →" }
-            return "Continue while downloading →"
+            return "Downloading… \(Int(state.brainDownload))%"
         }()
         let note: String = {
+            if let err = state.brainDownloadError { return "Error: \(err)" }
             if let b = picked { return "\(b.name) \(b.variant) · \(Int(state.brainDownload))%" }
             return "You can install one later in Settings → Brain"
         }()
         return NavFooter(
             primary: primary,
+            primaryDisabled: downloading,
             onContinue: { state.next() },
             secondary: picked == nil ? nil : "Clear selection",
-            onSkip: picked == nil ? nil : {
-                state.brainID = nil
-                state.brainDownload = 0
-            },
+            onSkip: picked == nil ? nil : { state.clearBrainSelection() },
             note: note
         )
     }
@@ -87,7 +87,7 @@ struct BrainScreen: View {
         ScrollView {
             VStack(spacing: 12) {
                 // Skip card
-                Button(action: { state.brainID = nil; state.brainDownload = 0 }) {
+                Button(action: { state.clearBrainSelection() }) {
                     HStack(alignment: .center, spacing: 14) {
                         radio(picked: state.brainID == nil)
                         VStack(alignment: .leading, spacing: 4) {
@@ -133,21 +133,14 @@ struct BrainScreen: View {
                         brain: brain,
                         picked: state.brainID == brain.id,
                         dlPct: state.brainID == brain.id ? state.brainDownload : nil,
+                        errorText: state.brainID == brain.id ? state.brainDownloadError : nil,
                         onPick: {
-                            state.brainID = brain.id
-                            state.brainDownload = 0
+                            state.selectAndDownloadBrain(brain)
                         }
                     )
                 }
             }
             .padding(36)
-        }
-        .task(id: "\(state.brainID ?? "none")-\(state.brainDownload)") {
-            guard state.brainID != nil, state.brainDownload < 100 else { return }
-            try? await Task.sleep(nanoseconds: 110_000_000)
-            if !Task.isCancelled {
-                state.brainDownload = min(100, state.brainDownload + Double.random(in: 1.5...5))
-            }
         }
     }
 
