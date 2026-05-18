@@ -69,7 +69,7 @@ struct SnippetsView: View {
                     .font(DS.Font.sans(16))
                     .lineSpacing(4)
                     .foregroundStyle(DS.Palette.ink2)
-                    .frame(maxWidth: 560, alignment: .leading)
+                    .frame(maxWidth: 460, alignment: .leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

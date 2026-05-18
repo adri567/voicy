@@ -44,7 +44,7 @@ struct TranscribeMasthead: View {
                 .font(DS.Font.sans(16))
                 .foregroundStyle(DS.Palette.ink2)
                 .lineSpacing(5)
-                .frame(maxWidth: 540, alignment: .leading)
+                .frame(maxWidth: 460, alignment: .leading)
         }
     }
 

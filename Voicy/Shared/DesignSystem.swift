@@ -52,7 +52,7 @@ nonisolated enum DS {
     }
 
     enum Spacing {
-        static let pageHPadding: CGFloat = 56
+        static let pageHPadding: CGFloat = 40
         static let pageTop: CGFloat = 36
         static let sectionGap: CGFloat = 32
     }

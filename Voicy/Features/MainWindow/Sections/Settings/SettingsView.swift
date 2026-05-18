@@ -6,16 +6,7 @@ struct SettingsView: View {
     var viewModel: RecordingViewModel
     @Bindable var cycle: ModeCycleService
 
-    // MOCK state — not persisted, not wired to system. TODO(settings-impl).
-    @State private var launchAtLogin = false
-    @State private var menuBarIcon = true
-    @State private var soundOnStart = true
-    @State private var autoPunct = true
-    @State private var saveLocal = true
-    @State private var usage = false
-    @State private var updates = "stable"
-    @State private var sensitivity: Double = 60
-    @State private var device = "MacBook Pro Microphone"
+    @AppStorage(Preferences.Key.onboardingClickSounds) private var clickSounds = true
 
     @State private var showingClearMicConfirmation = false
     @State private var showingClearFileConfirmation = false
@@ -90,7 +81,7 @@ struct SettingsView: View {
                     .font(DS.Font.sans(15))
                     .lineSpacing(4)
                     .foregroundStyle(DS.Palette.ink2)
-                    .frame(maxWidth: 540, alignment: .leading)
+                    .frame(maxWidth: 460, alignment: .leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -139,35 +130,15 @@ struct SettingsView: View {
     private var sections: some View {
         VStack(alignment: .leading, spacing: 36) {
 
-            SettingsSection(title: "General", caption: "How Voicy starts up and lives on your Mac") {
-                SettingsToggleRow(label: "Launch at login",
-                                  desc: "Have Voicy start automatically when you sign in.",
-                                  value: $launchAtLogin,
-                                  isMock: true)   // TODO(launch-at-login)
-                SettingsToggleRow(label: "Show menu bar icon",
-                                  desc: "A small waveform in the menu bar — click for quick controls.",
-                                  value: $menuBarIcon,
-                                  isMock: true)   // TODO(menubar-toggle)
+            SettingsSection(title: "General", caption: "Small comforts while Voicy runs") {
                 SettingsToggleRow(label: "Play a sound on start / stop",
                                   desc: "A soft click when dictation begins and ends.",
-                                  value: $soundOnStart,
-                                  isMock: true)   // TODO(sound-toggle)
+                                  value: $clickSounds,
+                                  isMock: false)
             }
 
             SettingsSection(title: "Language", caption: "What you speak — and what Voicy listens for") {
                 SettingsLanguageRow(cycle: cycle)
-            }
-
-            SettingsSection(title: "Audio", caption: "The microphone and how Voicy listens") {
-                SettingsSelectRow(label: "Input device",
-                                  desc: "Pick which microphone Voicy listens to.",
-                                  value: $device,
-                                  options: ["MacBook Pro Microphone", "Studio Display Microphone", "AirPods Pro (2)"],
-                                  isMock: true)   // TODO(audio-input)
-                SettingsSliderRow(label: "Trigger sensitivity",
-                                  desc: "How quickly Voicy starts capturing once you hold the key.",
-                                  value: $sensitivity, min: 0, max: 100, suffix: "%",
-                                  isMock: true)   // TODO(sensitivity)
             }
 
             SettingsSection(title: "Transcription", caption: "Defaults the engine uses") {
@@ -178,21 +149,9 @@ struct SettingsView: View {
                                     set: { _ in viewModel.toggleShowTranscript() }
                                   ),
                                   isMock: false)
-                SettingsToggleRow(label: "Smart punctuation",
-                                  desc: "Insert commas and periods automatically based on intonation.",
-                                  value: $autoPunct,
-                                  isMock: true)   // TODO(smart-punct)
             }
 
             SettingsSection(title: "Privacy", caption: "Where your words go — and where they don't") {
-                SettingsToggleRow(label: "Save transcripts on this Mac",
-                                  desc: "Keep a local history. Disable to drop transcripts after they're typed.",
-                                  value: $saveLocal,
-                                  isMock: true)   // TODO(history-toggle)
-                SettingsToggleRow(label: "Share anonymous usage data",
-                                  desc: "Help improve Voicy by sending non-identifying interaction stats. No audio, ever.",
-                                  value: $usage,
-                                  isMock: true)   // TODO(usage-stats)
                 SettingsDangerButtonRow(
                     label: "Clear Home history",
                     description: "Removes all mic recordings from Home history.",
@@ -203,18 +162,6 @@ struct SettingsView: View {
                     description: "Removes all file transcriptions from Transcribe history.",
                     action: { showingClearFileConfirmation = true }
                 )
-            }
-
-            SettingsSection(title: "Updates", caption: "When Voicy looks for new builds") {
-                SettingsRadioRow(label: "Update channel",
-                                 desc: "Stable is checked daily. Beta gets the new stuff first.",
-                                 value: $updates,
-                                 options: [
-                                    .init(id: "stable", label: "Stable", sub: "Reliable, daily check"),
-                                    .init(id: "beta",   label: "Beta",   sub: "Early features, weekly"),
-                                    .init(id: "manual", label: "Manual", sub: "Only when you ask"),
-                                 ],
-                                 isMock: true)   // TODO(update-channel)
             }
 
             SettingsSection(title: "Onboarding", caption: "Replay the first-run tour any time you like") {

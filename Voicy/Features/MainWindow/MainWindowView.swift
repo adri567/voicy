@@ -21,7 +21,7 @@ struct MainWindowView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(DS.Palette.paper)
             }
-            .frame(minWidth: 1340, minHeight: 760)
+            .frame(minWidth: 1200, minHeight: 680)
             .background(DS.Palette.paper)
             .toolbar {
                 ToolbarItem(placement: .navigation) {
