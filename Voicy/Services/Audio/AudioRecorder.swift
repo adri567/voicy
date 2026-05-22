@@ -1,3 +1,4 @@
+import CoreAudio
 import Foundation
 import WhisperKit
 
@@ -16,9 +17,9 @@ nonisolated final class AudioRecorder {
 
     init() {}
 
-    func start() throws {
+    func start(inputDeviceID: AudioDeviceID? = nil) throws {
         let processor = AudioProcessor()
-        try processor.startRecordingLive(inputDeviceID: nil, callback: nil)
+        try processor.startRecordingLive(inputDeviceID: inputDeviceID, callback: nil)
         self.processor = processor
         self.startDate = Date()
     }

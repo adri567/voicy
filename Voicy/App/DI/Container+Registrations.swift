@@ -102,4 +102,11 @@ extension Container {
         }
         .singleton
     }
+
+    var audioInputDeviceService: Factory<any AudioInputDeviceService> {
+        Factory(self) {
+            MainActor.assumeIsolated { DefaultAudioInputDeviceService() }
+        }
+        .singleton
+    }
 }

@@ -1,3 +1,4 @@
+import FactoryKit
 import Foundation
 import WhisperKit
 
@@ -5,8 +6,11 @@ actor DefaultTranscriptionService: TranscriptionService {
 
     private var whisperKit: WhisperKit?
     private let recorder = AudioRecorder()
+    private let audioDevices: any AudioInputDeviceService
 
-    init() {}
+    init() {
+        self.audioDevices = Container.shared.audioInputDeviceService()
+    }
 
     func loadModel() async throws {
         guard whisperKit == nil else { return }
@@ -34,7 +38,8 @@ actor DefaultTranscriptionService: TranscriptionService {
 
     func startRecording() async throws {
         guard whisperKit != nil else { throw TranscriptionError.modelNotLoaded }
-        try recorder.start()
+        let deviceID = await audioDevices.resolveSelectedDeviceID()
+        try recorder.start(inputDeviceID: deviceID)
     }
 
     func stopAndTranscribe(language: String) async throws -> TranscriptionResult {

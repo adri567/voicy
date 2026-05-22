@@ -1,3 +1,4 @@
+import FactoryKit
 import Foundation
 import FluidAudio
 
@@ -5,8 +6,11 @@ actor ParakeetTranscriptionService: TranscriptionService {
 
     private var asrManager: AsrManager?
     private let recorder = AudioRecorder()
+    private let audioDevices: any AudioInputDeviceService
 
-    init() {}
+    init() {
+        self.audioDevices = Container.shared.audioInputDeviceService()
+    }
 
     func loadModel() async throws {
         guard asrManager == nil else { return }
@@ -39,7 +43,8 @@ actor ParakeetTranscriptionService: TranscriptionService {
 
     func startRecording() async throws {
         guard asrManager != nil else { throw TranscriptionError.modelNotLoaded }
-        try recorder.start()
+        let deviceID = await audioDevices.resolveSelectedDeviceID()
+        try recorder.start(inputDeviceID: deviceID)
     }
 
     func stopAndTranscribe(language: String) async throws -> TranscriptionResult {

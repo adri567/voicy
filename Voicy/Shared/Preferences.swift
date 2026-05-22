@@ -17,5 +17,9 @@ nonisolated enum Preferences {
         static let onboardingCompleted = "onboarding.completed"
         static let onboardingClickSounds = "onboarding.clickSounds"
         static let onboardingOpenAtLogin = "onboarding.openAtLogin"
+
+        // Audio input. Stores the CoreAudio device UID (stable across replug);
+        // empty/missing means "follow system default".
+        static let selectedAudioDeviceUID = "audio.selectedDeviceUID"
     }
 }

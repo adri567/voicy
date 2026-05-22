@@ -2,69 +2,84 @@
 
 ## Context
 
-Voicy ist eine native macOS App (Swift 6.2 / SwiftUI, macOS 26.2+) für Voice-to-Text mit WhisperKit + Parakeet als Transcription-Engines und MLX-Swift (Gemma & Co.) als LLM für Post-Processing. Diese Session hatte zwei große Stränge:
+Voicy ist eine native macOS-App (Swift 6.2 / SwiftUI, macOS 26.2+) für Voice-to-Text mit WhisperKit + Parakeet als Transcription-Engines und MLX-Swift (Gemma / Qwen / Llama) als optionalem LLM-Post-Processing. Diese Session hatte zwei klare Phasen:
 
-1. **Onboarding wirklich nutzbar machen** — Engine- und Brain-Downloads waren entweder schlecht verkabelt (Model-Auto-Download verwirrend) oder reines UI-Mock (Brain-Screen). Plus PracticeScreen, der nicht funktionierte. Plus zwischen Onboarding und MainWindow nicht klar persistierte Engine-Wahl, die das ViewModel auf den falschen Service laufen ließ.
-2. **Diverse Recording-Bugs fixen + Polish** — stuck pill nach Model-Load-Race, paste-race mit altem Clipboard, hardcoded German in beiden Engines, sound-leak ins Mikrofon, fehlende Mode-Switch-Animation.
+1. **Polish + Hardening** — Droplet-Mode-Switch-Animation reparieren, Arrow-Keys während Recording wirklich global schlucken (Cursor-Sprung in Terminal/Xcode), Mistral als zu langsames Brain entfernen, komplette App-Lokalisierung Deutsch → Englisch, Settings auf nur funktionale Toggles zurechtstutzen, Main-Window-Mindestgröße reduzieren.
+2. **Strategie-Diskussion** — Pricing-Modell, Cloud-Kosten-Realität, USP-Frage angesichts SuperWhisper/Wispr-Flow-Konkurrenz. Keine Code-Änderungen daraus, aber konzeptionelle Richtung für nächste Sprints abgesteckt.
 
-Die App ist jetzt eine Dock-App (war Menubar-only mit `LSUIElement = YES`) — User soll beim ersten Start direkt ins Onboarding-Window kommen.
+Die App ist regulär funktional, läuft als Dock-App, hat Onboarding-Flow durchverkabelt, lokale Whisper + Parakeet + MLX-LLM + Sortformer-Diarization.
 
 ## Current State
 
-### Committed (commit `3b5b9c1`, gepushed)
-- **Onboarding**: Engine- und Brain-Downloads echt verkabelt mit progress bars + 100% Continue-Gate. `selectAndDownloadBrain` analog zu `selectAndDownloadModel`. Brain-Catalog auf 5 echte MLX registryKeys (Gemma 2B/4B, Mistral, Qwen, Llama). Engine-Choice direkt in `persistEngineChoice` persistiert bei Karten-Klick (statt erst am Onboarding-Ende). Nach Install wird per `loadAfterInstall` der App-Singleton-Service warm gemacht — kein lazy-load mehr beim ersten Fn-Press.
-- **PracticeScreen**: TextEditor mit FocusState + auto-focus → Voicy's Cmd+V landet im Notepad. Live-Status aus `viewModel.state`.
-- **Recording-Fixes**: `cancelStartIfPending` + `bailIfCanceled` gegen orphan `.recording`-Sessions wenn Release während Lazy-Load. `startInProgress`-Guard gegen Re-entry. `holdDelay` von 300 ms → 150 ms. Rescue-Path im `handleFnPress` für stuck-pill-Recovery. Paste-Race: Restore-Delay 300 ms → 1.2 s + content-check.
-- **App-Lifecycle**: `LSUIElement` entfernt → reguläre Dock-App. `setup()` läuft ab Launch, idempotent, ohne `onboardingCompleted`-Gate. `viewModel.service` als computed property (statt `@Injected`) — engine-switch ohne App-Restart. `reloadActiveModel()` nach Onboarding-Finish.
-- **Language**: `TranscriptionService.stopAndTranscribe(language:)` — Whisper und Parakeet respektieren jetzt die aktive Sprache statt hardcoded German.
-- **Permissions**: lazy reads, denied → System Settings öffnen + polling. FnKey-Screen mit "Open Keyboard Settings"-Button immer sichtbar.
+### Committed in dieser Session
 
-### Uncommitted (in dieser Session danach)
-- **Sounds** (`SoundService.swift`): drei Events — `Purr` für Start (0.25 Volume), `Pop` für Stop (0.25), `Morse` für Mode-Switch (0.08, deutlich leiser). NSSound-Cache mit `stop()` vor `play()` für zuverlässigen Retrigger. Respektiert `clickSounds`-Toggle, default-on.
-- **Audio-Crop** (`AudioRecorder.swift`): erste und letzte 200 ms werden weggeschnitten — gegen UI-Sound-Leak in Mic.
-- **Warning-Text in OverlayView**: gelb → weiß für "No voice model installed" und "No AI model installed".
-- **Mode-Switch-Animation** (Droplet): Custom `AnyTransition.modifier` mit `Animatable`-Konformanz (sonst snapped's). Bouncier Spring (response 0.5, dampingFraction 0.5). `.id(cycle.activeMode.id)` zwingt SwiftUI zu removal+insertion.
+- **`e9db9ed`** — intercept cycle arrows, fix droplet transition, add ui sounds
+  - `ArrowKeyEventTap.swift` neu: CGEventTap mit `.defaultTap` (statt `.listenOnly`) schluckt Home/End/←/→ system-wide während Recording. Ersetzt den alten `NSEvent.addGlobalMonitorForEvents`, der listen-only war.
+  - `CycleBadge.swift`: interner `.id(mode.id)` + `.transition(...)` raus — kollidierte mit dem outer Setup in `OverlayView` und überschrieb die `.droplet`-Transition.
+  - `OverlayView.swift`: `.transition(.scale(scale: 0, anchor: .leading).combined(with: .opacity))` mit `.spring(response: 0.4, dampingFraction: 1.0)` — critically-damped, kein Overshoot über 100%. Plus `.padding(.horizontal, 8)` + `.padding(.bottom, 6)` damit das NSPanel die Transition nicht clippt.
+  - `SoundService.swift` neu: Purr (start) / Pop (stop) / Morse (mode-switch) via NSSound, respektiert `onboardingClickSounds`-Preference.
+  - `AudioRecorder.swift`: crop'd 200ms head + tail um UI-Sound-Leak ins Mic zu verhindern.
+  - `EngineView.swift` + `BrainView.swift`: „Import model →"-Buttons + Hugging-Face-Hints raus.
+  - `EngineView.swift` + `DiarizationModelCard.swift`: „Beta"-Tag neben „◆ The Editorial" bzw. „Speaker recognition".
 
-### Offen / unverifiziert
-- **Droplet-Animation visuell**: User berichtete sie funktioniere nicht, danach Animatable-Konformanz + sichtbarere Spring eingebaut. Ungetestet.
-- **Whisper-File-Casing** (von früherer Session geparkt).
-- **Diarization-Quality mau** (geparkt).
-- **9 `isMock: true`-Toggles in SettingsView** noch nicht funktional.
+- **`ac2f753`** — translate remaining German UI strings to English, drop Mistral brain
+  - Alle deutschen User-facing-Strings übersetzt: MainWindowView (Sidebar-Tooltips), SidebarSection (Verlauf → History), SnippetsView (Delete-Alert + Empty-State), SettingsView (Clear-History-Alerts, Toggle/Danger-Labels), Brain/EngineView (Activate/Delete-Alerts), DiarizationModelCard, TranscribePreviewCard/HistoryRow/SegmentRow (Context-Menüs + „Copied"-Toast), TranscribeDetailToggles („unavailable"), MenuBarStatusView (Quit, Open Voicy, Resume onboarding, alle Status-Labels), TranscriptPopupView, HistoryRow, DefaultTranscriptionService + DiarizationService + MLXTextCorrectionService (Error-Strings).
+  - Mistral 7B raus aus `BrainView` (Library-Catalog), `OnboardingCatalog` (brains), `MLXTextCorrectionService` (`supportedRegistryKeys` + `configuration`/`repoID`-switches). Bestehende UserDefaults mit `"mistral7B4bit"` fallen via `activeRegistryKey`-Filter auf `defaultRegistryKey` (Gemma 4 E2B) zurück.
+
+- **`4a73a73`** — trim Settings to functional toggles, shrink main window footprint
+  - SettingsView: alle Mock-Toggles raus (Launch at login, Show menu bar icon, Input device, Trigger sensitivity, Smart punctuation, Save transcripts, Share usage data, Update channel). Sektionen „Audio" und „Updates" fallen komplett weg.
+  - „Play a sound on start / stop" jetzt echt verkabelt via `@AppStorage(Preferences.Key.onboardingClickSounds)` — gleicher Key den `SoundService.enabled` liest.
+  - 8 ungenutzte `@State`-Vars in SettingsView entfernt.
+  - `MainWindowView.swift`: `minWidth: 1340 → 1200`, `minHeight: 760 → 680`.
+  - `DesignSystem.swift`: `pageHPadding: 56 → 40`.
+  - Headline-`maxWidth` in EngineView, BrainView, SnippetsView, SettingsView, TranscribeMasthead: `540/560 → 460` damit das Layout bei neuem Min nicht reißt.
+
+### Bekannte offene Punkte (nicht-blockierend)
+
+- **Sidebar NavItem vertikaler Jump beim Collapse**: User hatte gemeldet, dass beim Toggle Sidebar-Full ↔ Compact die Icon-Größen und vertikale Position springen. Ein Fix-Versuch (einheitliche HStack-Struktur, konstante Icon-Größe 16pt/22×22) wurde implementiert, vom User aber **wieder rückgängig** gemacht (per Linter-Notiz signalisiert). Aktueller Stand: Original-Code mit zwei separaten Layout-Branches (compact = bare Image 17pt/40×36, full = HStack mit Image 15pt/18×18 + Text). Problem besteht damit weiterhin — nächster Versuch braucht anderen Ansatz.
+- **3 ungenutzte Settings-Komponenten-Files**: `SettingsSelectRow.swift`, `SettingsSliderRow.swift`, `SettingsRadioRow.swift` werden seit Mock-Toggle-Cleanup nicht mehr referenziert. User wurde gefragt ob löschen — noch keine Antwort.
+- **9 `isMock: true`-Toggles in SettingsView** — alle entfernt. Dieser Punkt von letzter Session ist erledigt.
+- **Whisper-File-Casing** (lowercase ohne Punctuation bei File-Transkription) — geparkt.
+- **Diarization-Quality** (LS-EEND-Output mau) — geparkt.
+- **Phase 3.5 Speaker-Edit** — geparkt.
 
 ## Key Decisions
 
 | Entscheidung | Begründung |
 |---|---|
-| `viewModel.service` als computed property statt `@Injected` | `@Injected` cached den Service beim ViewModel-Init — also vor der Engine-Wahl im Onboarding. Computed property resolved bei jedem Zugriff aus `TranscriptionEngine.current` → live engine-switch ohne App-Relaunch. |
-| `setup()` ohne `onboardingCompleted`-Gate | `setup()` triggert keine Permission-Prompts mehr (die wurden in die Onboarding-Buttons verlagert) und ist idempotent. PracticeScreen braucht den Hotkey-Tap aktiv, bevor Onboarding abgeschlossen ist. |
-| `LSUIElement`-Key **komplett entfernt** (statt `NO` setzen) | Eindeutig — `NO` kann von macOS Launch Services gecached werden und die App taucht als Accessory auf. Ohne Key ist die Standard-GUI-App-Semantik garantiert. |
-| Brain-Catalog auf 5 echte registryKeys + Gemma 2B als recommended | Catalog war vorher Mock mit Phantasie-IDs (`phi35`, `qwen14b`) die im MLXTextCorrectionService gar nicht existieren. Jetzt deckungsgleich mit `BrainView` und `supportedRegistryKeys`. Gemma 2B = Default-Brain = recommended. |
-| Brain-Continue blockiert bis 100% (skip-card always available) | Wenn der OnboardingState beim `onFinish` zerstört wird, würde ein mid-stream Brain-Download abbrechen. Gate verhindert das, Skip ist klare Alternative. |
-| `loadAfterInstall(model)` nach Download | Static `install()` baut ein Throwaway-WhisperKit/AsrManager um die Files zu downloaden — die App-Singleton-Instanz bleibt leer. Ohne expliziten Singleton-Load wäre die erste Fn-Press 2–3 s mit lazy-load belastet. |
-| `persistEngineChoice` direkt beim Modell-Klick (nicht erst am Onboarding-Ende) | Sonst resolved `viewModel.service` während PracticeScreen den falschen (Default-Whisper-)Service und Recording schlägt fehl. |
-| Audio-Crop 200 ms beidseitig im Recorder | Belt-and-suspenders gegen UI-Sound-Leak ins Mic. User wartet typischerweise > 150 ms nach Start-Sound bevor er redet → kein Speech-Verlust. |
-| NSSound + System-Sounds für UI-Feedback | Keine Asset-Files, keine Lizenz. Apple liefert `Purr`, `Pop`, `Morse` etc. mit. Per-Sound Volume getrennt. |
-| Mode-Switch-Animation braucht `Animatable`-Konformanz | Plain `ViewModifier` in `AnyTransition.modifier` snapt ohne `Animatable`. SwiftUI braucht `animatableData` (hier `AnimatablePair<CGFloat, AnimatablePair<CGFloat, Double>>`) für mid-frame-Interpolation. |
-| `.id(cycle.activeMode.id)` auf `CycleBadge` | Ohne Identity-Change ist die View für SwiftUI nur eine Property-Update → keine `transition` greift. Mit `.id()` erkennt SwiftUI removal + insertion → Droplet-Transition feuert. |
-| `holdDelay` 300 → 150 ms | 300 ms war designed gegen Bubble-Flackern bei kurzen Taps. User empfand die Latenz aber als zu lang. 150 ms ist noch oberhalb typischer Tap-Dauer (80–100 ms). |
-| Paste-Restore 300 ms → 1.2 s + Content-Check | 300 ms war zu kurz für langsame Apps (Chrome, Electron) — manchmal pastete Voicy das alte Clipboard statt des transkribierten Texts. |
+| `ArrowKeyEventTap` als eigene Klasse, `.defaultTap` statt `.listenOnly` | NSEvent.addGlobalMonitorForEvents kann per API-Design keine Events schlucken. Nur CGEventTap mit `.defaultTap` darf nach `return nil` Events fallenlassen. Saubere Klasse analog zu `HotkeyEventTap`, nur aktiv während `arrowTap.enable()` in `startRecordingSession` → `disable()` in `finishRecording`. Minimaler System-Performance-Impact. |
+| Droplet-Transition vereinfacht zu `.scale(scale: 0, anchor: .leading).combined(with: .opacity)` | Der Custom `Animatable`-`DropletEmerge`-ViewModifier funktionierte technisch, war aber unnötig komplex. Standard-SwiftUI-Transition macht visuell denselben „aus der Pillenkante wachsen"-Effekt und ist robust gegen Edge-Cases. |
+| Critically-damped Spring (`dampingFraction: 1.0`) statt bouncy | User explizit: „nicht größer als 100%" beim Emerge. Bounce sah schlecht aus weil Badge dann kurz über die Pillen-Höhe wuchs. |
+| `.padding(.horizontal, 8)` + `.padding(.bottom, 6)` als Window-Breathing-Room | NSPanel-Frame orientiert sich an Layout-Größe, nicht an `.scaleEffect`. Auch nach Switch zu critically-damped als Sicherheit drin gelassen — fängt zukünftige Animation-Anpassungen ab ohne Clipping-Regressionen. |
+| Mistral 7B komplett aus 3 Stellen entfernt statt nur aus UI versteckt | Mistral war zu langsam für Translation-Prompts und qualitativ overlapped mit Gemma 4 E4B / Qwen 2.5 7B die schon im Catalog sind. Keine Mock-Hülle — sauberer Cut. UserDefaults-Migration kostenlos durch existierenden `supportedRegistryKeys.contains`-Filter. |
+| Mock-Toggles in Settings komplett raus statt grayed-out | „Sektionen mit nur Mock-Inhalt" sah unfertig aus. Lieber weniger Sections die alle echt funktionieren, als Vollständigkeit vortäuschen. Sound-Toggle wurde verkabelt statt gelöscht weil `onboardingClickSounds`-Preference schon im SoundService gelesen wird — nur das Settings-Surface fehlte. |
+| Window-Min auf 1200×680 + pageHPadding 40 + Headline-maxWidth 460 als Set | Untergrenze rechnerisch: Sidebar 256 + 2× pageHPadding 40 + Headline 460 + spacing 56 + activeCard 360 = 1228 — passt mit kleinem Puffer in 1200 (Detail-Bereich 944, davon Headline 460 + spacing + Card = 876, bleiben 68px Puffer). Alle vier Werte mussten zusammen angepasst werden. |
+
+### Strategie-Entscheidungen aus Diskussion (nicht im Code)
+
+| Thema | Vorläufige Richtung |
+|---|---|
+| Pricing-Modell | Hybrid: Free + Pro mit drei Optionen (€4.99/mo · €39/Jahr · €79 Lifetime). Cloud-Tier später separat (€8/mo). |
+| Free-Tier Scope | Raw-Mode + Whisper Tiny/Small. Translation, Snippets unlimited, Custom Modes, Speaker Recognition hinter Pro-Paywall. |
+| Cloud-LLM-Kosten | Realistisch: $0.30–0.80/User/Monat im Schnitt (Gemini 2.5 Flash oder GPT-4.1 Mini). Heavy-User bei harter 5000-Wörter/Tag-Quota max $2/Monat. Marge bei €8 Cloud-Sub komfortabel >70%. |
+| USP-Richtung | **Meeting-Mode** als stärkster Differenzierungs-Kandidat: lokales Otter-Pendant mit Speaker-Diarization + LLM-Summary + Action-Items, alles on-device. Klare Marktlücke (Otter/Granola/Fireflies sind Cloud), nutzt bestehende Voicy-Bausteine (Whisper, Diarization, MLX-LLM), rechtfertigt eigenes Pro-Tier (€15–25/mo). Noch nicht final entschieden. |
+| AI-Pointer-Klon (DeepMind-Feature) | Verworfen als eigenes Produkt. Stattdessen evtl. Light-Variante als Vision-augmented Cloud-Pro-Feature („Fn + Shift = mit Screenshot fragen") — kein eigener Strang. |
 
 ## Open Questions
 
-- **Droplet-Animation visuell**: Mit `Animatable`-Konformanz + bouncier Spring sollte sie sichtbar sein. Verifikation durch User steht aus. Falls weiter nicht sichtbar → vermutlich Build-Cache, sonst tieferes Debug nötig.
-- **Mode-Switch-Sound-Volume 0.08**: Ggf. weiter feinjustieren. Vielleicht sogar 0.04 — User wollte "deutlich leiser".
-- **Audio-Crop 200 ms**: Falls User merkt dass erste/letzte Silben abgeschnitten werden → reduzieren auf 100 ms.
-- **PracticeScreen Recording-Erlebnis bei langsamem ersten Load**: Wenn das Modell direkt nach Onboarding-Download noch nicht im RAM ist (sollte nicht passieren mit `loadAfterInstall`), wäre der erste Fn-Press immer noch träge. Robustheitstest ausstehend.
-- **Whisper-File-Casing**: lowercase-Output ohne Punctuation bei Datei-Transkription. Vertagt.
-- **Diarization-Quality**: LS-EEND-Output mau, drei Verbesserungspfade dokumentiert, geparkt.
-- **Phase 3.5 Speaker-Edit**: geparkt.
+- **NavItem-Sidebar-Jump**: nächster Lösungsweg unklar. User hat die einheitliche-HStack-Variante verworfen. Andere Optionen: (a) konstante vertikale Höhe via `.frame(height: 36)` auf das Button-Label statt Padding-Berechnung, (b) komplett separate Compact-Sidebar als eigene View mit eigenem Layout-Setup statt geteilter NavItem, (c) Icon-Größe konstant lassen aber die Hintergrund-Pille-Größe variieren. Braucht Diskussion bevor neuer Versuch.
+- **3 unused Settings-Komponenten löschen?** — User-Bestätigung steht aus.
+- **Meeting-Mode bauen?** — Strategie-Empfehlung gegeben, User-Entscheidung steht aus. Wenn ja: 4–8 Wochen Build-Effort.
+- **Pricing finale Form** — €4.99/€39/€79 vorgeschlagen, kein finales Commit vom User.
+- **Cloud-Tier zum Launch oder später?** — Empfehlung: erst Pro etablieren, Cloud nachschieben wenn API-LLMs als Brain-Option dazukommen.
+- **Whisper-File-Casing** (Datei-Transkription lowercase ohne Punctuation) — vertagt.
+- **Diarization-Quality** — 3 Verbesserungspfade dokumentiert, geparkt.
 
 ## Next Steps
 
-1. **Droplet-Animation testen**: App vollständig rebuilden (Cmd+R aus Xcode) und während Recording Fn+→/← drücken. Die Kugel sollte horizontal-gestreckt aus der Pill-Kante kommen, mit Spring-Overshoot zur Runde nachschwingen. Falls's funktioniert: weiter mit Schritt 2. Falls nicht: tieferes Debug — vielleicht `withAnimation`-Wrapper in `cycleForward/cycleBackward` setzen, oder Animation auf einen `.scaleEffect(...).animation(...)` direkt am `CycleBadge` ziehen.
-2. **Sound-Volumes final feinjustieren** falls User-Feedback dazu kommt.
-3. **Commit + push** der uncommitted Änderungen: Sounds, Audio-Crop, weißer Warning, Droplet-Animation. Eine Commit-Message in der Art von `add UI sounds with audio-cropping; droplet mode-switch transition`.
-4. **Sound-Toggle in Settings-View** exposieren — aktuell nur via Onboarding (`onboarding.clickSounds`). User sollte ihn auch nachträglich umstellen können.
-5. **9 `isMock: true`-Toggles in SettingsView** verkabeln oder entfernen.
-6. **Whisper-File-Casing** wieder aufnehmen (geparkt).
-7. **Diarization-Quality** wieder aufnehmen (geparkt).
+1. **NavItem-Sidebar-Jump-Fix (Re-Approach)** — gemeinsam mit User klären welche Layout-Strategie er möchte: konstante Höhe + Icon-Center, oder separate Compact-Sidebar-Komponente, oder Hintergrund-Pille variiert. Erst dann implementieren.
+2. **Unused Settings-Komponenten** entscheiden: löschen (`SettingsSelectRow.swift`, `SettingsSliderRow.swift`, `SettingsRadioRow.swift`) oder behalten. Klärung mit User.
+3. **Meeting-Mode-Skizze** — falls Strategie-Entscheidung für USP-Richtung fällt: architektonisches Spike-Dokument (welche neuen Services, Pipeline für Long-Form-Recording + Live-Diarization + Post-Summary, neue Sidebar-Sektion „Meetings", Speicherformat für Meeting-Entries). Vor Build.
+4. **Whisper-File-Casing** wieder aufnehmen (geparkt aus früheren Sessions).
+5. **Diarization-Quality** — einen der 3 dokumentierten Pfade angehen (geparkt).
+6. **Pricing-Implementation** — StoreKit 2 Skeleton, Receipt-Validation, Backend-Proxy-Skizze für Cloud-Tier. Erst wenn Pricing-Modell finalisiert ist.

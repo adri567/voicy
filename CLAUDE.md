@@ -6,6 +6,18 @@ Ziel: kommerzielles Produkt (Freemium + Abo). Aktueller Fokus: **Phase 1 MVP** (
 
 ---
 
+## Knowledge Vault
+- Vault: `/Users/adriansuthold/Documents/MyVault`
+- Project hub: `MyVault/wiki/projects/Voicy.md` (product vision, roadmap, feature
+  modes, monetization, decisions, open questions).
+- Before non-trivial work: read the hub page + linked concepts.
+- Write learnings/decisions back to the vault: project-specific → the hub page;
+  reusable across projects → a `concept` page linked from it. Follow `MyVault/CLAUDE.md`.
+- This file stays the source of truth for code conventions/architecture — the vault
+  references it, does not duplicate it.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |

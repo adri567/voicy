@@ -31,6 +31,12 @@ struct MainWindowView: View {
                     }
                     .keyboardShortcut("s", modifiers: [.command, .control])
                 }
+                ToolbarItem(placement: .principal) {
+                    Spacer()
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    MicrophoneSelectorView()
+                }
             }
             .toolbar(removing: .title)
             .toolbarBackground(.hidden, for: .windowToolbar)
