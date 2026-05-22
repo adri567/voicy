@@ -109,7 +109,7 @@ struct TranscribeSegmentRow: View {
     @ViewBuilder
     private var wordCountColumn: some View {
         VStack(alignment: .trailing, spacing: 4) {
-            Text("\(wordCount)")
+            Text("\(segment.wordCount)")
                 .font(DS.Font.serif(22))
                 .tracking(-0.2)
                 .foregroundStyle(DS.Palette.ink3)
@@ -124,10 +124,6 @@ struct TranscribeSegmentRow: View {
             !CharacterSet(charactersIn: ".,!?;:—").contains(scalar)
         }
         return String(String.UnicodeScalarView(scalars))
-    }
-
-    private var wordCount: Int {
-        segment.text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
     }
 
     private func formatted(_ time: TimeInterval) -> String {

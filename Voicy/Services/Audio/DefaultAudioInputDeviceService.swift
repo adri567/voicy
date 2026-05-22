@@ -1,5 +1,6 @@
 @preconcurrency import CoreAudio
 import Foundation
+import OSLog
 
 /// CoreAudio HAL backed enumeration of audio input devices.
 ///
@@ -68,7 +69,7 @@ actor DefaultAudioInputDeviceService: AudioInputDeviceService {
             continuation.yield(Self.enumerateInputDevices())
         }
         if status != noErr {
-            print("[AudioInputDeviceService] Hotplug listener install failed: \(status)")
+            Log.audio.error("AudioInputDeviceService: hotplug listener install failed: \(status, privacy: .public)")
         }
         // Emit the initial snapshot so subscribers don't have to call `currentSnapshot`
         // separately.

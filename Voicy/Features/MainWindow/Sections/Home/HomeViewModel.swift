@@ -47,7 +47,7 @@ final class HomeViewModel {
     }
 
     func todayWords(from entries: [TranscriptionEntry]) -> Int {
-        todayEntries(from: entries).map(\.text).reduce(0) { $0 + Self.wordCount($1) }
+        todayEntries(from: entries).reduce(0) { $0 + $1.wordCount }
     }
 
     func todayMinutes(from entries: [TranscriptionEntry]) -> Double {
@@ -63,7 +63,7 @@ final class HomeViewModel {
     func topDestinations(from entries: [TranscriptionEntry]) -> [(name: String, words: Int, pct: Double)] {
         let withTarget = entries.compactMap { entry -> (String, Int)? in
             guard let name = entry.targetAppName, !name.isEmpty else { return nil }
-            return (name, Self.wordCount(entry.text))
+            return (name, entry.wordCount)
         }
         let summed = Dictionary(withTarget, uniquingKeysWith: +)
         let sorted = summed.sorted { $0.value > $1.value }.prefix(4)
@@ -124,10 +124,6 @@ final class HomeViewModel {
     }
 
     // MARK: - Helpers
-
-    private static func wordCount(_ s: String) -> Int {
-        s.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
-    }
 
     private static let weekdayFormatter: DateFormatter = {
         let f = DateFormatter()

@@ -54,7 +54,7 @@ final class FileTranscriptionEntry {
     }
 
     var wordCount: Int {
-        fullText.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+        fullText.wordCount
     }
 
     var durationLabel: String {

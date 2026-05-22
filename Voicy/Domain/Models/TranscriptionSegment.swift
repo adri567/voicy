@@ -18,4 +18,6 @@ nonisolated struct TranscriptionSegment: Sendable, Hashable, Identifiable, Codab
         self.text = text
         self.speaker = speaker
     }
+
+    var wordCount: Int { text.wordCount }
 }

@@ -7,7 +7,7 @@ import SwiftUI
 /// before completing the flow.
 struct WindowCloseHandler: NSViewRepresentable {
 
-    let onClose: () -> Void
+    let onClose: @MainActor @Sendable () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onClose: onClose) }
 
@@ -23,24 +23,28 @@ struct WindowCloseHandler: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 
     final class Coordinator {
-        private let onClose: () -> Void
+        private let onClose: @MainActor @Sendable () -> Void
 
         // Notification token must be released from the nonisolated deinit.
         // NSObjectProtocol is not Sendable; this property is only mutated on
         // MainActor (in `attach`) so the race-free invariant holds.
         nonisolated(unsafe) private var token: NSObjectProtocol?
 
-        init(onClose: @escaping () -> Void) {
+        init(onClose: @escaping @MainActor @Sendable () -> Void) {
             self.onClose = onClose
         }
 
         func attach(to window: NSWindow) {
             guard token == nil else { return }
+            // The observer fires on the main queue, so jumping back onto the
+            // MainActor with `assumeIsolated` is race-free.
             token = NotificationCenter.default.addObserver(
                 forName: NSWindow.willCloseNotification,
                 object: window,
                 queue: .main
-            ) { [onClose] _ in onClose() }
+            ) { [onClose] _ in
+                MainActor.assumeIsolated { onClose() }
+            }
         }
 
         deinit {

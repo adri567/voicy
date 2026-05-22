@@ -6,6 +6,7 @@ struct MainWindowView: View {
     var modeCycleService: ModeCycleService
     @State private var selection: SidebarSection = .home
     @State private var sidebarMode: SidebarMode = .full
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack {
@@ -29,6 +30,7 @@ struct MainWindowView: View {
                         Image(systemName: "sidebar.left")
                             .help(sidebarHelp)
                     }
+                    .accessibilityLabel("Toggle sidebar")
                     .keyboardShortcut("s", modifiers: [.command, .control])
                 }
                 ToolbarItem(placement: .principal) {
@@ -59,7 +61,7 @@ struct MainWindowView: View {
     }
 
     private func toggleSidebar() {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.4, dampingFraction: 0.85)) {
             sidebarMode = sidebarMode == .full ? .compact : .full
         }
     }

@@ -1,16 +1,9 @@
 import AppKit
 import AVFoundation
 
-enum PermissionState: Equatable, Sendable {
-    case idle, granted, denied
-}
+final class DefaultPermissionService: PermissionService {
 
-@MainActor
-final class PermissionService {
-
-    static let shared = PermissionService()
-
-    private init() {}
+    nonisolated init() {}
 
     // MARK: - Microphone
 

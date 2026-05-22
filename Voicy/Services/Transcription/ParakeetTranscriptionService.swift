@@ -1,10 +1,14 @@
 import FactoryKit
 import Foundation
+import OSLog
 import FluidAudio
 
 actor ParakeetTranscriptionService: TranscriptionService {
 
     private var asrManager: AsrManager?
+    /// In-flight load, shared by concurrent `loadModel()` callers so the model
+    /// is loaded once instead of duplicated across overlapping calls.
+    private var loadTask: Task<Void, Error>?
     private let recorder = AudioRecorder()
     private let audioDevices: any AudioInputDeviceService
 
@@ -13,20 +17,29 @@ actor ParakeetTranscriptionService: TranscriptionService {
     }
 
     func loadModel() async throws {
+        if asrManager != nil { return }
+        if let loadTask { return try await loadTask.value }
+        let task = Task<Void, Error> { try await self.performLoad() }
+        loadTask = task
+        defer { loadTask = nil }
+        try await task.value
+    }
+
+    private func performLoad() async throws {
         guard asrManager == nil else { return }
         // Load-from-cache only. Downloads happen exclusively through
         // installModel(progress:), triggered from EngineView.
         guard isModelInstalled() else {
-            print("[Parakeet] Skipping auto-load — model not on disk")
+            Log.transcription.debug("Parakeet: skipping auto-load — model not on disk")
             return
         }
         let v = Self.asrVersion(for: Self.activeVersion)
-        print("[Parakeet] Loading FluidAudio model from cache (\(Self.activeVersion))…")
+        Log.transcription.debug("Parakeet: loading FluidAudio model from cache (\(Self.activeVersion, privacy: .public))")
         let models = try await AsrModels.loadFromCache(version: v)
         let manager = AsrManager(config: .default)
         try await manager.loadModels(models)
         asrManager = manager
-        print("[Parakeet] Model ready (Neural Engine)")
+        Log.transcription.debug("Parakeet: model ready (Neural Engine)")
     }
 
     /// Currently selected Parakeet version identifier (from UserDefaults).
@@ -54,11 +67,11 @@ actor ParakeetTranscriptionService: TranscriptionService {
         guard !samples.isEmpty else { throw TranscriptionError.noAudioCaptured }
 
         let lang: Language = Language(rawValue: language) ?? .german
-        print("[Parakeet] Transcribing \(samples.count) samples (\(String(format: "%.1f", Double(samples.count) / 16000.0))s), language=\(language)…")
+        Log.transcription.debug("Parakeet: transcribing \(samples.count) samples, language=\(language, privacy: .public)")
         var decoderState = TdtDecoderState.make()
         let result = try await manager.transcribe(samples, decoderState: &decoderState, language: lang)
         let text = result.text.trimmingCharacters(in: .whitespaces)
-        print("[Parakeet] Done: \"\(text)\"")
+        Log.transcription.debug("Parakeet: done: \"\(text)\"")
         return TranscriptionResult(text: text, duration: duration)
     }
 
@@ -171,7 +184,7 @@ actor ParakeetTranscriptionService: TranscriptionService {
             progress(1.0)
             return
         }
-        print("[Parakeet] Installing model with progress…")
+        Log.transcription.debug("Parakeet: installing model with progress")
         let models = try await AsrModels.downloadAndLoad(version: v) { p in
             progress(p.fractionCompleted)
         }
@@ -179,13 +192,13 @@ actor ParakeetTranscriptionService: TranscriptionService {
         try await manager.loadModels(models)
         asrManager = manager
         progress(1.0)
-        print("[Parakeet] Model installed")
+        Log.transcription.debug("Parakeet: model installed")
     }
 
     func removeModel() async throws {
         asrManager = nil
         try Self.remove(version: Self.activeVersion)
-        print("[Parakeet] Model removed from disk")
+        Log.transcription.debug("Parakeet: model removed from disk")
     }
 
     // MARK: - Static API (any model, not just the active one)

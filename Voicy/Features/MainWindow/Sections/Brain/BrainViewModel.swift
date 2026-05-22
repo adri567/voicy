@@ -15,7 +15,9 @@ final class BrainViewModel {
         case active        // on disk and currently loaded
     }
 
-    private(set) var statuses: [String: Status] = [:]
+    /// Internal-settable (not `private(set)`) so unit tests can drive the
+    /// filter + sort logic directly. Views only ever read it.
+    var statuses: [String: Status] = [:]
     private(set) var lastError: String?
 
     /// Active filter chip — bound to the BrainFilterChip row.

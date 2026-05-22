@@ -17,7 +17,9 @@ final class EngineViewModel {
 
     enum Family { case whisper, parakeet }
 
-    private(set) var statuses: [String: Status] = [:]
+    /// Internal-settable (not `private(set)`) so unit tests can drive the
+    /// sort logic directly. Views only ever read it.
+    var statuses: [String: Status] = [:]
     private(set) var lastError: String?
 
     func refresh(whisperIDs: [String], parakeetVersions: [String]) {

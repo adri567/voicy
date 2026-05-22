@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import MLXLLM
 import MLXLMCommon
 import MLXHuggingFace
@@ -8,20 +9,32 @@ import Tokenizers
 actor MLXTextCorrectionService: TextCorrectionService {
 
     private var container: ModelContainer?
+    /// In-flight load, shared by concurrent `loadModel()` callers so the model
+    /// is loaded once instead of duplicated across overlapping calls.
+    private var loadTask: Task<Void, Error>?
 
     init() {}
 
     func loadModel(onProgress: (@Sendable (Double) -> Void)? = nil) async throws {
+        if container != nil { return }
+        if let loadTask { return try await loadTask.value }
+        let task = Task<Void, Error> { try await self.performLoad(onProgress: onProgress) }
+        loadTask = task
+        defer { loadTask = nil }
+        try await task.value
+    }
+
+    private func performLoad(onProgress: (@Sendable (Double) -> Void)?) async throws {
         guard container == nil else { return }
         // Load-from-cache only. Downloads happen exclusively through
         // installModel(progress:), triggered from BrainView.
         guard isModelInstalled() else {
-            print("[MLX] Skipping auto-load — model not on disk")
+            Log.llm.debug("MLX: skipping auto-load — model not on disk")
             return
         }
-        print("[MLX] Loading \(Self.activeRegistryKey) from cache…")
+        Log.llm.debug("MLX: loading \(Self.activeRegistryKey, privacy: .public) from cache")
         try await runLoad(onProgress: onProgress)
-        print("[MLX] \(Self.activeRegistryKey) loaded")
+        Log.llm.debug("MLX: \(Self.activeRegistryKey, privacy: .public) loaded")
     }
 
     func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
@@ -29,10 +42,10 @@ actor MLXTextCorrectionService: TextCorrectionService {
             progress(1.0)
             return
         }
-        print("[MLX] Installing \(Self.activeRegistryKey)…")
+        Log.llm.debug("MLX: installing \(Self.activeRegistryKey, privacy: .public)")
         try await runLoad(onProgress: progress)
         progress(1.0)
-        print("[MLX] \(Self.activeRegistryKey) installed")
+        Log.llm.debug("MLX: \(Self.activeRegistryKey, privacy: .public) installed")
     }
 
     private func runLoad(onProgress: (@Sendable (Double) -> Void)?) async throws {
@@ -44,7 +57,7 @@ actor MLXTextCorrectionService: TextCorrectionService {
                 let fraction = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
                 let completed = progress.completedUnitCount / 1_000_000
                 let total = progress.totalUnitCount / 1_000_000
-                print(String(format: "[MLX] %.1f%% — %d MB / %d MB", fraction * 100, completed, total))
+                Log.llm.debug("MLX: \(fraction * 100, format: .fixed(precision: 1))% — \(completed) MB / \(total) MB")
                 onProgress?(fraction)
             }
         )
@@ -95,7 +108,7 @@ actor MLXTextCorrectionService: TextCorrectionService {
     /// Removes reasoning/thinking blocks emitted by hybrid-thinking models
     /// (Qwen 3, DeepSeek R1, …). They wrap their chain-of-thought in
     /// `<think>…</think>` before the actual answer.
-    nonisolated private static func stripReasoning(_ response: String) -> String {
+    nonisolated static func stripReasoning(_ response: String) -> String {
         guard let end = response.range(of: "</think>") else { return response }
         return String(response[end.upperBound...])
     }
@@ -109,7 +122,7 @@ actor MLXTextCorrectionService: TextCorrectionService {
     func removeModel() async throws {
         container = nil
         try Self.remove(registryKey: Self.activeRegistryKey)
-        print("[MLX] \(Self.activeRegistryKey) removed from disk")
+        Log.llm.debug("MLX: \(Self.activeRegistryKey, privacy: .public) removed from disk")
     }
 
     // MARK: - Static API (any model, not just the active one)
@@ -184,7 +197,7 @@ actor MLXTextCorrectionService: TextCorrectionService {
 
     // MARK: - Prompts
 
-    nonisolated private static func wrappedInput(for mode: Mode, transcript: String) -> String {
+    nonisolated static func wrappedInput(for mode: Mode, transcript: String) -> String {
         switch mode.type {
         case .raw, .snippets:
             return transcript // unreachable in practice
@@ -231,7 +244,7 @@ actor MLXTextCorrectionService: TextCorrectionService {
         """
     }
 
-    nonisolated private static func systemPrompt(for mode: Mode, source: AppLanguage) -> String {
+    nonisolated static func systemPrompt(for mode: Mode, source: AppLanguage) -> String {
         switch mode.type {
         case .raw, .snippets:
             // Unreachable — guarded in `correct`.

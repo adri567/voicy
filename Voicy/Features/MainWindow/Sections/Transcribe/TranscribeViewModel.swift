@@ -1,6 +1,7 @@
 import AppKit
 import FactoryKit
 import Foundation
+import OSLog
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -93,9 +94,7 @@ final class TranscribeViewModel {
     var segments: [TranscriptionSegment] { realSegments }
 
     var wordCount: Int {
-        segments.reduce(0) { sum, seg in
-            sum + seg.text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
-        }
+        segments.reduce(0) { $0 + $1.wordCount }
     }
 
     var segmentSummary: String {
@@ -295,7 +294,7 @@ final class TranscribeViewModel {
         do {
             try audioPlayer.load(url: url)
         } catch {
-            print("[Transcribe] AVAudioPlayer.load failed: \(error.localizedDescription)")
+            Log.transcription.error("Transcribe: AVAudioPlayer.load failed: \(error.localizedDescription, privacy: .public)")
         }
 
         // Persist to file-history. Build the entry up front so we can capture
@@ -322,7 +321,7 @@ final class TranscribeViewModel {
             do {
                 try await historyService.save(entry)
             } catch {
-                print("[Transcribe] history.save failed: \(error.localizedDescription)")
+                Log.transcription.error("Transcribe: history.save failed: \(error.localizedDescription, privacy: .public)")
             }
         }
 

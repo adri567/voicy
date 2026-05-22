@@ -59,9 +59,9 @@ struct SlotEditor: View {
             }
             Spacer()
             HStack(spacing: 6) {
-                EditorIconButton(icon: "arrow.left", disabled: isLocked || index <= 1) { onMove(-1) }
-                EditorIconButton(icon: "arrow.right", disabled: isLocked || index == total - 1) { onMove(1) }
-                EditorIconButton(icon: "trash", disabled: !canRemove, danger: true) { onRemove() }
+                EditorIconButton(icon: "arrow.left", label: "Move mode left", disabled: isLocked || index <= 1) { onMove(-1) }
+                EditorIconButton(icon: "arrow.right", label: "Move mode right", disabled: isLocked || index == total - 1) { onMove(1) }
+                EditorIconButton(icon: "trash", label: "Remove mode", disabled: !canRemove, danger: true) { onRemove() }
             }
         }
         .padding(.horizontal, 24)
@@ -258,13 +258,16 @@ struct SlotEditor: View {
                 .background(DS.Palette.paper, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(DS.Palette.ruleSoft, lineWidth: 1))
 
-                Text("Voicy prepends the system prompt with the raw transcription. Reference it as ")
+                let prefix = Text("Voicy prepends the system prompt with the raw transcription. Reference it as ")
                     .font(DS.Font.mono(10))
                     .foregroundStyle(DS.Palette.ink3)
-                +
-                Text("{{transcript}}").font(DS.Font.mono(10)).foregroundColor(DS.Palette.accent)
-                +
-                Text(" to splice it explicitly.").font(DS.Font.mono(10)).foregroundColor(DS.Palette.ink3)
+                let token = Text("{{transcript}}")
+                    .font(DS.Font.mono(10))
+                    .foregroundStyle(DS.Palette.accent)
+                let suffix = Text(" to splice it explicitly.")
+                    .font(DS.Font.mono(10))
+                    .foregroundStyle(DS.Palette.ink3)
+                Text("\(prefix)\(token)\(suffix)")
             }
         }
     }

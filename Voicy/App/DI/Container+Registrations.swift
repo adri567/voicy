@@ -96,6 +96,11 @@ extension Container {
             .singleton
     }
 
+    var permissionService: Factory<any PermissionService> {
+        Factory(self) { DefaultPermissionService() }
+            .singleton
+    }
+
     var modeCycleService: Factory<ModeCycleService> {
         Factory(self) {
             MainActor.assumeIsolated { ModeCycleService() }

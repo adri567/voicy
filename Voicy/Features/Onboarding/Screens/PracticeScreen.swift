@@ -35,14 +35,15 @@ struct PracticeScreen: View {
     }
 
     private var titleView: some View {
-        (Text("Now ")
+        let lead = Text("Now ")
             .font(DS.Font.serif(52, weight: .medium))
             .foregroundStyle(DS.Palette.ink)
-         + Text("say something.")
+        let accent = Text("say something.")
             .font(DS.Font.serifItalic(52, weight: .medium))
-            .foregroundStyle(DS.Palette.accent))
-        .tracking(-1.0)
-        .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(DS.Palette.accent)
+        return Text("\(lead)\(accent)")
+            .tracking(-1.0)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var leftBody: some View {

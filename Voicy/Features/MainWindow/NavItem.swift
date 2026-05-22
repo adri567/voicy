@@ -38,6 +38,7 @@ struct NavItem: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(section.label)
         .onHover { isHovering = $0 }
     }
 

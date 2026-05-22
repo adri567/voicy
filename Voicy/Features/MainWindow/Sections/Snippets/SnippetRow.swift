@@ -69,6 +69,7 @@ struct SnippetRow: View {
                 }
                 .buttonStyle(.plain)
                 .help(snippet.enabled ? "Disable" : "Enable")
+                .accessibilityLabel(snippet.enabled ? "Disable snippet" : "Enable snippet")
 
                 Button(action: onEdit) {
                     Image(systemName: "pencil")
@@ -80,6 +81,7 @@ struct SnippetRow: View {
                 }
                 .buttonStyle(.plain)
                 .help("Edit")
+                .accessibilityLabel("Edit snippet")
 
                 Button(action: onDelete) {
                     Image(systemName: "trash")
@@ -91,6 +93,7 @@ struct SnippetRow: View {
                 }
                 .buttonStyle(.plain)
                 .help("Delete")
+                .accessibilityLabel("Delete snippet")
             }
         }
     }

@@ -1,5 +1,6 @@
 import CoreML
 import Foundation
+import OSLog
 import FluidAudio
 
 /// Speaker diarization via FluidAudio's LS-EEND model. We deliberately *don't*
@@ -18,16 +19,28 @@ import FluidAudio
 actor FluidAudioDiarizationService: DiarizationService {
 
     private var diarizer: LSEENDDiarizer?
+    /// In-flight load, shared by concurrent `loadModel()` callers so the model
+    /// is loaded once instead of duplicated across overlapping calls.
+    private var loadTask: Task<Void, Error>?
 
     init() {}
 
     func loadModel() async throws {
+        if diarizer != nil { return }
+        if let loadTask { return try await loadTask.value }
+        let task = Task<Void, Error> { try await self.performLoad() }
+        loadTask = task
+        defer { loadTask = nil }
+        try await task.value
+    }
+
+    private func performLoad() async throws {
         guard diarizer == nil else { return }
         guard isModelInstalled() else {
-            print("[LS-EEND] Skipping auto-load — model not on disk")
+            Log.diarization.debug("LS-EEND: skipping auto-load — model not on disk")
             return
         }
-        print("[LS-EEND] Loading from cache (\(Self.activeVariant), \(Self.activeStepSize))…")
+        Log.diarization.debug("LS-EEND: loading from cache (\(String(describing: Self.activeVariant), privacy: .public), \(String(describing: Self.activeStepSize), privacy: .public))")
         let model = try await LSEENDModel.loadFromHuggingFace(
             variant: Self.activeVariant,
             stepSize: Self.activeStepSize,
@@ -38,7 +51,7 @@ actor FluidAudioDiarizationService: DiarizationService {
         let d = LSEENDDiarizer(timelineConfig: nil)
         try d.initialize(model: model)
         diarizer = d
-        print("[LS-EEND] Model ready")
+        Log.diarization.debug("LS-EEND: model ready")
     }
 
     // MARK: - DiarizationService
@@ -75,7 +88,7 @@ actor FluidAudioDiarizationService: DiarizationService {
             progress(1.0)
             return
         }
-        print("[LS-EEND] Install start — fetching from HuggingFace…")
+        Log.diarization.debug("LS-EEND: install start — fetching from HuggingFace")
         do {
             let model = try await LSEENDModel.loadFromHuggingFace(
                 variant: Self.activeVariant,
@@ -83,18 +96,18 @@ actor FluidAudioDiarizationService: DiarizationService {
                 cacheDirectory: nil,
                 computeUnits: .cpuOnly,
                 progressHandler: { p in
-                    print("[LS-EEND] progress \(String(format: "%.0f%% (%@)", p.fractionCompleted * 100, String(describing: p.phase)))")
+                    Log.diarization.debug("LS-EEND: progress \(p.fractionCompleted * 100, format: .fixed(precision: 0))% (\(String(describing: p.phase), privacy: .public))")
                     progress(p.fractionCompleted)
                 }
             )
-            print("[LS-EEND] Download finished, initializing diarizer…")
+            Log.diarization.debug("LS-EEND: download finished, initializing diarizer")
             let d = LSEENDDiarizer(timelineConfig: nil)
             try d.initialize(model: model)
             diarizer = d
             progress(1.0)
-            print("[LS-EEND] Model installed")
+            Log.diarization.debug("LS-EEND: model installed")
         } catch {
-            print("[LS-EEND] Install failed: \(error)")
+            Log.diarization.error("LS-EEND: install failed: \(String(describing: error), privacy: .public)")
             throw error
         }
     }
@@ -102,7 +115,7 @@ actor FluidAudioDiarizationService: DiarizationService {
     func removeModel() async throws {
         diarizer = nil
         try Self.remove(variant: Self.activeVariant)
-        print("[LS-EEND] Model removed from disk")
+        Log.diarization.debug("LS-EEND: model removed from disk")
     }
 
     // MARK: - Static API

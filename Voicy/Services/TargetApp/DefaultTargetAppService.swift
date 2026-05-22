@@ -29,7 +29,7 @@ final class DefaultTargetAppService: TargetAppService {
         let result = AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &focusedWindow)
         guard result == .success, let window = focusedWindow else { return nil }
 
-        let windowElement = unsafeBitCast(window, to: AXUIElement.self)
+        let windowElement = unsafeDowncast(window, to: AXUIElement.self)
         var title: CFTypeRef?
         let titleResult = AXUIElementCopyAttributeValue(windowElement, kAXTitleAttribute as CFString, &title)
         guard titleResult == .success, let titleString = title as? String, !titleString.isEmpty else {

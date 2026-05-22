@@ -16,14 +16,15 @@ struct MicrophoneScreen: View {
     }
 
     private var titleView: some View {
-        (Text("First, ")
+        let lead = Text("First, ")
             .font(DS.Font.serif(52, weight: .medium))
             .foregroundStyle(DS.Palette.ink)
-         + Text("let us hear you.")
+        let accent = Text("let us hear you.")
             .font(DS.Font.serifItalic(52, weight: .medium))
-            .foregroundStyle(DS.Palette.accent))
-        .tracking(-1.0)
-        .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(DS.Palette.accent)
+        return Text("\(lead)\(accent)")
+            .tracking(-1.0)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var bullets: some View {
@@ -86,10 +87,7 @@ struct MicrophoneScreen: View {
             // would suppress the native prompt before the user gets a chance
             // to ask for it.
             while !Task.isCancelled {
-                if PermissionService.shared.currentMicrophoneState() == .granted,
-                   state.micPermission != .granted {
-                    state.micPermission = .granted
-                }
+                state.syncMicrophoneFromSystem()
                 try? await Task.sleep(nanoseconds: 700_000_000)
             }
         }
@@ -121,7 +119,7 @@ struct MicrophoneScreen: View {
                 .foregroundStyle(Color(red: 0.114, green: 0.106, blue: 0.094).opacity(0.7))
                 .padding(.horizontal, 8)
 
-            Button(action: { PermissionService.shared.openMicrophonePane() }) {
+            Button(action: { state.openMicrophonePane() }) {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.up.forward.square")
                     Text("Open System Settings")
@@ -182,7 +180,7 @@ struct MicrophoneScreen: View {
             Divider().opacity(0.4)
 
             HStack(spacing: 8) {
-                Button(action: { state.micPermission = .denied }) {
+                Button(action: { state.denyMicrophone() }) {
                     Text("Don't Allow")
                         .font(DS.Font.sans(13, weight: .medium))
                         .foregroundStyle(.black)
@@ -197,10 +195,7 @@ struct MicrophoneScreen: View {
                 .buttonStyle(.plain)
 
                 Button(action: {
-                    Task {
-                        let result = await PermissionService.shared.requestMicrophone()
-                        state.micPermission = result
-                    }
+                    Task { await state.requestMicrophone() }
                 }) {
                     Text("Allow")
                         .font(DS.Font.sans(13, weight: .semibold))

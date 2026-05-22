@@ -16,17 +16,18 @@ struct BrainScreen: View {
     }
 
     private var titleView: some View {
-        (Text("And the ")
+        let lead = Text("And the ")
             .font(DS.Font.serif(52, weight: .medium))
             .foregroundStyle(DS.Palette.ink)
-         + Text("brain")
+        let accent = Text("brain")
             .font(DS.Font.serifItalic(52, weight: .medium))
             .foregroundStyle(DS.Palette.accent)
-         + Text(" that polishes it.")
+        let tail = Text(" that polishes it.")
             .font(DS.Font.serif(52, weight: .medium))
-            .foregroundStyle(DS.Palette.ink))
-        .tracking(-1.0)
-        .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(DS.Palette.ink)
+        return Text("\(lead)\(accent)\(tail)")
+            .tracking(-1.0)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var leftBody: some View {
@@ -91,12 +92,13 @@ struct BrainScreen: View {
                     HStack(alignment: .center, spacing: 14) {
                         radio(picked: state.brainID == nil)
                         VStack(alignment: .leading, spacing: 4) {
-                            (Text("No brain for now ")
+                            let lead = Text("No brain for now ")
                                 .font(DS.Font.serif(18, weight: .medium))
                                 .foregroundStyle(DS.Palette.ink)
-                             + Text("— just dictation")
+                            let tail = Text("— just dictation")
                                 .font(DS.Font.serifItalic(18))
-                                .foregroundStyle(DS.Palette.ink3))
+                                .foregroundStyle(DS.Palette.ink3)
+                            Text("\(lead)\(tail)")
                             Text("Voicy will transcribe and paste. Skip the download, save the disk space. Add one anytime later.")
                                 .font(DS.Font.sans(12))
                                 .lineSpacing(3)

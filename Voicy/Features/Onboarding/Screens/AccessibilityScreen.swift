@@ -16,14 +16,15 @@ struct AccessibilityScreen: View {
     }
 
     private var titleView: some View {
-        (Text("Then, ")
+        let lead = Text("Then, ")
             .font(DS.Font.serif(52, weight: .medium))
             .foregroundStyle(DS.Palette.ink)
-         + Text("let us type for you.")
+        let accent = Text("let us type for you.")
             .font(DS.Font.serifItalic(52, weight: .medium))
-            .foregroundStyle(DS.Palette.accent))
-        .tracking(-1.0)
-        .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(DS.Palette.accent)
+        return Text("\(lead)\(accent)")
+            .tracking(-1.0)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var leftBody: some View {
@@ -97,7 +98,7 @@ struct AccessibilityScreen: View {
             HStack(spacing: 12) {
                 if state.a11yPermission != .granted {
                     Button(action: {
-                        PermissionService.shared.requestAccessibility()
+                        state.requestAccessibility()
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "arrow.up.forward.square")
@@ -131,8 +132,7 @@ struct AccessibilityScreen: View {
             // Re-poll permission while the screen is visible so that
             // approving in System Settings updates the UI right away.
             while !Task.isCancelled {
-                let cur = PermissionService.shared.currentAccessibilityState()
-                if cur != state.a11yPermission { state.a11yPermission = cur }
+                state.syncAccessibilityFromSystem()
                 try? await Task.sleep(nanoseconds: 700_000_000)
             }
         }

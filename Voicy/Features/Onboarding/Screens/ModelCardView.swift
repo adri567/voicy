@@ -14,10 +14,11 @@ struct ModelCardView: View {
                     radio
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            (Text(model.family + " ")
+                            let family = Text(model.family + " ")
                                 .font(DS.Font.serif(24, weight: .medium))
-                             + Text(model.label)
-                                .font(DS.Font.serifItalic(24, weight: .medium)))
+                            let label = Text(model.label)
+                                .font(DS.Font.serifItalic(24, weight: .medium))
+                            Text("\(family)\(label)")
                                 .foregroundStyle(DS.Palette.ink)
                             Text(model.displaySize)
                                 .font(DS.Font.mono(9))

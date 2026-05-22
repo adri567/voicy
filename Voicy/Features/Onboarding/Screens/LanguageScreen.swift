@@ -18,17 +18,18 @@ struct LanguageScreen: View {
     }
 
     private var titleView: some View {
-        (Text("Which ")
+        let lead = Text("Which ")
             .font(DS.Font.serif(52, weight: .medium))
             .foregroundStyle(DS.Palette.ink)
-         + Text("language")
+        let accent = Text("language")
             .font(DS.Font.serifItalic(52, weight: .medium))
             .foregroundStyle(DS.Palette.accent)
-         + Text(" will you speak?")
+        let tail = Text(" will you speak?")
             .font(DS.Font.serif(52, weight: .medium))
-            .foregroundStyle(DS.Palette.ink))
-        .tracking(-1.0)
-        .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(DS.Palette.ink)
+        return Text("\(lead)\(accent)\(tail)")
+            .tracking(-1.0)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var leftBody: some View {

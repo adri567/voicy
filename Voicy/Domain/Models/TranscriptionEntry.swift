@@ -35,4 +35,6 @@ final class TranscriptionEntry {
     var engine: TranscriptionEngine {
         TranscriptionEngine(rawValue: engineRaw) ?? .whisper
     }
+
+    var wordCount: Int { text.wordCount }
 }

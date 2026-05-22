@@ -16,14 +16,15 @@ struct FnKeyScreen: View {
     }
 
     private var titleView: some View {
-        (Text("Free up the ")
+        let lead = Text("Free up the ")
             .font(DS.Font.serif(52, weight: .medium))
             .foregroundStyle(DS.Palette.ink)
-         + Text("Fn key.")
+        let accent = Text("Fn key.")
             .font(DS.Font.serifItalic(52, weight: .medium))
-            .foregroundStyle(DS.Palette.accent))
-        .tracking(-1.0)
-        .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(DS.Palette.accent)
+        return Text("\(lead)\(accent)")
+            .tracking(-1.0)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var leftBody: some View {
@@ -102,7 +103,7 @@ struct FnKeyScreen: View {
                 HStack(spacing: 10) {
                     if state.fnKeyState != .granted {
                         Button(action: {
-                            PermissionService.shared.disableFnKey()
+                            state.disableFnKey()
                         }) {
                             HStack(spacing: 8) {
                                 Image(systemName: "wand.and.sparkles")
@@ -118,7 +119,7 @@ struct FnKeyScreen: View {
                     }
 
                     Button(action: {
-                        PermissionService.shared.openKeyboardPane()
+                        state.openKeyboardPane()
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "arrow.up.forward.square")
@@ -149,8 +150,7 @@ struct FnKeyScreen: View {
         .padding(36)
         .task {
             while !Task.isCancelled {
-                let cur = PermissionService.shared.currentFnKeyState()
-                if cur != state.fnKeyState { state.fnKeyState = cur }
+                state.syncFnKeyFromSystem()
                 try? await Task.sleep(nanoseconds: 700_000_000)
             }
         }

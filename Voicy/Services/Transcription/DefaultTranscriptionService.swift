@@ -1,10 +1,14 @@
 import FactoryKit
 import Foundation
+import OSLog
 import WhisperKit
 
 actor DefaultTranscriptionService: TranscriptionService {
 
     private var whisperKit: WhisperKit?
+    /// In-flight load, shared by concurrent `loadModel()` callers so the model
+    /// is loaded once instead of duplicated across overlapping calls.
+    private var loadTask: Task<Void, Error>?
     private let recorder = AudioRecorder()
     private let audioDevices: any AudioInputDeviceService
 
@@ -13,17 +17,26 @@ actor DefaultTranscriptionService: TranscriptionService {
     }
 
     func loadModel() async throws {
+        if whisperKit != nil { return }
+        if let loadTask { return try await loadTask.value }
+        let task = Task<Void, Error> { try await self.performLoad() }
+        loadTask = task
+        defer { loadTask = nil }
+        try await task.value
+    }
+
+    private func performLoad() async throws {
         guard whisperKit == nil else { return }
         // Load-from-cache only. Downloads happen exclusively through
         // installModel(progress:), triggered from EngineView.
         guard isModelInstalled() else {
-            print("[WhisperKit] Skipping auto-load — model not on disk")
+            Log.transcription.debug("WhisperKit: skipping auto-load — model not on disk")
             return
         }
         let model = Self.activeModelID
-        print("[WhisperKit] Loading model from cache: \(model)")
+        Log.transcription.debug("WhisperKit: loading model from cache: \(model, privacy: .public)")
         whisperKit = try await WhisperKit(model: model)
-        print("[WhisperKit] Model loaded successfully")
+        Log.transcription.debug("WhisperKit: model loaded successfully")
     }
 
     /// Currently selected Whisper model identifier (from UserDefaults).
@@ -47,7 +60,7 @@ actor DefaultTranscriptionService: TranscriptionService {
 
         let (samples, duration) = recorder.stop()
 
-        print("[WhisperKit] Final transcription: \(samples.count) samples (\(String(format: "%.1f", Double(samples.count) / 16000.0))s), language=\(language)")
+        Log.transcription.debug("WhisperKit: final transcription: \(samples.count) samples, language=\(language, privacy: .public)")
         guard !samples.isEmpty else {
             throw TranscriptionError.noAudioCaptured
         }
@@ -105,7 +118,7 @@ actor DefaultTranscriptionService: TranscriptionService {
     /// raw control tokens — `<|startoftranscript|>`, `<|de|>`, `<|transcribe|>`,
     /// `<|0.00|>` timestamps — into the decoded text. Strip every `<|...|>` and
     /// collapse the resulting whitespace.
-    nonisolated private static func cleanWhisperOutput(_ raw: String) -> String {
+    nonisolated static func cleanWhisperOutput(_ raw: String) -> String {
         let stripped = raw.replacing(/<\|[^|>]*\|>/, with: "")
         return stripped
             .replacing(/[ \t]+/, with: " ")
@@ -144,7 +157,7 @@ actor DefaultTranscriptionService: TranscriptionService {
     func removeModel() async throws {
         whisperKit = nil
         try ModelStorage.remove(at: ModelStorage.whisperKitPath(model: Self.activeModelID))
-        print("[WhisperKit] Model removed from disk")
+        Log.transcription.debug("WhisperKit: model removed from disk")
     }
 
     // MARK: - Static API (any model, not just the active one)

@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OSLog
 
 /// Low-level CGEventTap that swallows the four cycle-arrow keys while a
 /// recording session is active.
@@ -45,7 +46,7 @@ final class ArrowKeyEventTap {
             callback: callback,
             userInfo: selfPointer
         ) else {
-            print("[ArrowKeyEventTap] tap creation failed — Accessibility permission missing?")
+            Log.app.error("ArrowKeyEventTap: tap creation failed — Accessibility permission missing?")
             return
         }
 

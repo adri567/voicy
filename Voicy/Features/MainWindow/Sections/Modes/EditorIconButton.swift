@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EditorIconButton: View {
     let icon: String
+    let label: String
     let disabled: Bool
     var danger: Bool = false
     let action: () -> Void
@@ -17,5 +18,6 @@ struct EditorIconButton: View {
         }
         .buttonStyle(.plain)
         .disabled(disabled)
+        .accessibilityLabel(label)
     }
 }

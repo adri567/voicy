@@ -5,6 +5,8 @@ import Observation
 @Observable
 final class OnboardingState {
 
+    @ObservationIgnored @Injected(\.permissionService) private var permissions
+
     // Navigation
     var stepIndex: Int = 0
     var step: OnboardingStep { OnboardingStep.allCases[stepIndex] }
@@ -201,6 +203,58 @@ final class OnboardingState {
         stepIndex = max(0, min(OnboardingStep.allCases.count - 1, index))
     }
 
+    // MARK: - Permissions
+
+    /// Re-reads all three permission states from the system. Called when the
+    /// onboarding window appears so a change made in System Settings shows up.
+    func refreshPermissions() {
+        micPermission = permissions.currentMicrophoneState()
+        a11yPermission = permissions.currentAccessibilityState()
+        fnKeyState = permissions.currentFnKeyState()
+    }
+
+    /// Mic polling only ever upgrades to `.granted`; it never downgrades to
+    /// `.denied` from a stale TCC read (see the init comment for why).
+    func syncMicrophoneFromSystem() {
+        if permissions.currentMicrophoneState() == .granted, micPermission != .granted {
+            micPermission = .granted
+        }
+    }
+
+    func requestMicrophone() async {
+        micPermission = await permissions.requestMicrophone()
+    }
+
+    func denyMicrophone() {
+        micPermission = .denied
+    }
+
+    func openMicrophonePane() {
+        permissions.openMicrophonePane()
+    }
+
+    func syncAccessibilityFromSystem() {
+        let cur = permissions.currentAccessibilityState()
+        if cur != a11yPermission { a11yPermission = cur }
+    }
+
+    func requestAccessibility() {
+        permissions.requestAccessibility()
+    }
+
+    func syncFnKeyFromSystem() {
+        let cur = permissions.currentFnKeyState()
+        if cur != fnKeyState { fnKeyState = cur }
+    }
+
+    func disableFnKey() {
+        permissions.disableFnKey()
+    }
+
+    func openKeyboardPane() {
+        permissions.openKeyboardPane()
+    }
+
     // MARK: - Init from preferences
 
     init() {
@@ -210,10 +264,10 @@ final class OnboardingState {
         // first Allow-click can trigger the native system prompt instead of
         // landing on a stale `.denied` from an earlier session that would
         // suppress the prompt entirely.
-        let micNow = PermissionService.shared.currentMicrophoneState()
+        let micNow = permissions.currentMicrophoneState()
         micPermission = (micNow == .granted) ? .granted : .idle
-        a11yPermission = PermissionService.shared.currentAccessibilityState()
-        fnKeyState = PermissionService.shared.currentFnKeyState()
+        a11yPermission = permissions.currentAccessibilityState()
+        fnKeyState = permissions.currentFnKeyState()
         if let lang = d.string(forKey: Preferences.Key.sourceLanguageCode) {
             languageCode = lang
         }

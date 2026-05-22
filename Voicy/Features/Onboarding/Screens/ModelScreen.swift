@@ -16,14 +16,15 @@ struct ModelScreen: View {
     }
 
     private var titleView: some View {
-        (Text("Choose a ")
+        let lead = Text("Choose a ")
             .font(DS.Font.serif(52, weight: .medium))
             .foregroundStyle(DS.Palette.ink)
-         + Text("voice.")
+        let accent = Text("voice.")
             .font(DS.Font.serifItalic(52, weight: .medium))
-            .foregroundStyle(DS.Palette.accent))
-        .tracking(-1.0)
-        .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(DS.Palette.accent)
+        return Text("\(lead)\(accent)")
+            .tracking(-1.0)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var footer: some View {

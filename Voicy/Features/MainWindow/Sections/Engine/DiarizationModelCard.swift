@@ -1,4 +1,5 @@
 import FactoryKit
+import OSLog
 import SwiftUI
 
 /// Installable add-on for speaker diarization (Sortformer). Not part of the
@@ -153,7 +154,7 @@ struct DiarizationModelCard: View {
 
     private func install() {
         guard case .notInstalled = status else { return }
-        print("[Sortformer-UI] install tapped")
+        Log.diarization.debug("Sortformer: install tapped")
         status = .downloading(0)
         task?.cancel()
         task = Task { [service] in
@@ -166,9 +167,9 @@ struct DiarizationModelCard: View {
                     }
                 }
                 await MainActor.run { status = .installed }
-                print("[Sortformer-UI] install complete")
+                Log.diarization.debug("Sortformer: install complete")
             } catch {
-                print("[Sortformer-UI] install failed: \(error.localizedDescription)")
+                Log.diarization.error("Sortformer: install failed: \(error.localizedDescription, privacy: .public)")
                 await MainActor.run { status = .notInstalled }
             }
         }
@@ -181,7 +182,7 @@ struct DiarizationModelCard: View {
                 try await service.removeModel()
                 status = .notInstalled
             } catch {
-                print("[Sortformer] remove failed: \(error.localizedDescription)")
+                Log.diarization.error("Sortformer: remove failed: \(error.localizedDescription, privacy: .public)")
             }
         }
     }

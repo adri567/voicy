@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 /// One-shot reset that wipes all existing `TranscriptionEntry` rows on first
@@ -15,9 +16,9 @@ nonisolated enum HistoryMigration {
         do {
             try context.delete(model: TranscriptionEntry.self)
             try context.save()
-            print("[HistoryMigration] reset complete — all TranscriptionEntry rows deleted")
+            Log.history.info("HistoryMigration: reset complete — all TranscriptionEntry rows deleted")
         } catch {
-            print("[HistoryMigration] reset failed: \(error.localizedDescription)")
+            Log.history.error("HistoryMigration: reset failed: \(error.localizedDescription, privacy: .public)")
         }
         UserDefaults.standard.set(true, forKey: migratedKey)
     }

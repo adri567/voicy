@@ -14,10 +14,11 @@ struct BrainCardView: View {
                     radio
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            (Text(brain.name + " ")
+                            let name = Text(brain.name + " ")
                                 .font(DS.Font.serif(22, weight: .medium))
-                             + Text(brain.variant)
-                                .font(DS.Font.serifItalic(22, weight: .medium)))
+                            let variant = Text(brain.variant)
+                                .font(DS.Font.serifItalic(22, weight: .medium))
+                            Text("\(name)\(variant)")
                                 .foregroundStyle(DS.Palette.ink)
                             Text(brain.family)
                                 .font(DS.Font.mono(9))

@@ -24,9 +24,7 @@ struct OnboardingView: View {
         }
         .onAppear {
             // Refresh permission state on launch
-            state.micPermission = PermissionService.shared.currentMicrophoneState()
-            state.a11yPermission = PermissionService.shared.currentAccessibilityState()
-            state.fnKeyState = PermissionService.shared.currentFnKeyState()
+            state.refreshPermissions()
         }
     }
 

@@ -44,7 +44,7 @@ struct HistoryRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text("\(wordCount)")
+                    Text("\(entry.wordCount)")
                         .font(DS.Font.serif(26))
                         .tracking(-0.2)
                         .foregroundStyle(DS.Palette.ink3)
@@ -126,9 +126,6 @@ struct HistoryRow: View {
         return String(format: "%d:%02d", m, s)
     }
 
-    private var wordCount: Int {
-        entry.text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
-    }
 }
 
 extension TranscriptionEngine {

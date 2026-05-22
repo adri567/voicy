@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OSLog
 
 enum AppRelauncher {
     /// Startet eine neue Instanz von Voicy und beendet danach die aktuelle.
@@ -22,7 +23,7 @@ enum AppRelauncher {
             try process.run()
             NSApp.terminate(nil)
         } catch {
-            print("[AppRelauncher] Relaunch failed: \(error)")
+            Log.app.error("AppRelauncher: relaunch failed: \(String(describing: error), privacy: .public)")
         }
     }
 }

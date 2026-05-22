@@ -1,5 +1,6 @@
 import FactoryKit
 import Foundation
+import OSLog
 import Observation
 
 @Observable @MainActor
@@ -85,7 +86,7 @@ final class RecordingViewModel {
         do {
             try await service.loadModel()
         } catch {
-            print("[RecordingViewModel] Model loading failed: \(error)")
+            Log.recording.error("RecordingViewModel: model loading failed: \(String(describing: error), privacy: .public)")
         }
         state = .idle
         Task { @MainActor [weak self] in
@@ -166,7 +167,7 @@ final class RecordingViewModel {
             // (e.g. user just finished onboarding without restarting the app).
             // Fall through to the lazy-load path below.
         } catch {
-            print("[RecordingViewModel] Start recording failed: \(error)")
+            Log.recording.error("RecordingViewModel: start recording failed: \(String(describing: error), privacy: .public)")
             return
         }
 
@@ -179,7 +180,7 @@ final class RecordingViewModel {
             beginLevelTracking()
             state = .recording
         } catch {
-            print("[RecordingViewModel] Lazy load + start failed: \(error)")
+            Log.recording.error("RecordingViewModel: lazy load + start failed: \(String(describing: error), privacy: .public)")
             showNoModelHint()
         }
     }
@@ -215,11 +216,11 @@ final class RecordingViewModel {
                 try await correctionService.loadModel()
                 return try await correctionService.correct(text, mode: mode, sourceLanguage: sourceLanguage)
             } catch {
-                print("[RecordingViewModel] Brain lazy-load + correct failed: \(error)")
+                Log.recording.error("RecordingViewModel: brain lazy-load + correct failed: \(String(describing: error), privacy: .public)")
                 return nil
             }
         } catch {
-            print("[RecordingViewModel] Correction failed: \(error)")
+            Log.recording.error("RecordingViewModel: correction failed: \(String(describing: error), privacy: .public)")
             return nil
         }
     }
@@ -310,7 +311,7 @@ final class RecordingViewModel {
                 )
             }
         } catch {
-            print("[RecordingViewModel] Transcription failed: \(error)")
+            Log.recording.error("RecordingViewModel: transcription failed: \(String(describing: error), privacy: .public)")
             state = .idle
         }
     }

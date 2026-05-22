@@ -28,7 +28,7 @@ final class AppCoordinator {
     //                    on release we stop + transcribe + paste.
     //   toggle         — entered on double-Fn; bubble persists until the
     //                    next Fn press, which stops + transcribes + pastes.
-    //Yeah.
+    //
     // A short single tap does NOT make the bubble appear — we only show
     // the bubble once we know the gesture is genuinely a hold or a toggle.
     private enum HotkeyGesture { case idle, pendingHold, hold, toggle }

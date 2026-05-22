@@ -1,4 +1,5 @@
 import FactoryKit
+import OSLog
 import SwiftUI
 
 struct SettingsView: View {
@@ -49,7 +50,7 @@ struct SettingsView: View {
             do {
                 try await micHistoryService.deleteAll()
             } catch {
-                print("[Settings] Mic history deleteAll failed: \(error.localizedDescription)")
+                Log.settings.error("Mic history deleteAll failed: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -59,7 +60,7 @@ struct SettingsView: View {
             do {
                 try await fileHistoryService.deleteAll()
             } catch {
-                print("[Settings] File history deleteAll failed: \(error.localizedDescription)")
+                Log.settings.error("File history deleteAll failed: \(error.localizedDescription, privacy: .public)")
             }
         }
     }

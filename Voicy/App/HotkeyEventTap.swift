@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OSLog
 
 /// Low-level CGEventTap that observes the Fn modifier globally and fires
 /// `onFnPress` / `onFnRelease` callbacks on edge transitions.
@@ -41,7 +42,7 @@ final class HotkeyEventTap {
             callback: callback,
             userInfo: selfPointer
         ) else {
-            print("[HotkeyEventTap] tap creation failed — Accessibility permission missing?")
+            Log.app.error("HotkeyEventTap: tap creation failed — Accessibility permission missing?")
             return
         }
 
