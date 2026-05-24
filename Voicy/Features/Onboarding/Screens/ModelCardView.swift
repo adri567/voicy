@@ -3,8 +3,8 @@ import SwiftUI
 struct ModelCardView: View {
     let model: OnboardingModel
     let picked: Bool
-    let dlPct: Double?
-    let errorText: String?
+    /// Download state for *this* card, or `nil` if it isn't the selected one.
+    let download: DownloadUIState?
     let onPick: () -> Void
 
     var body: some View {
@@ -38,7 +38,7 @@ struct ModelCardView: View {
                         }
                     }
                     Spacer(minLength: 0)
-                    if let pct = dlPct, pct >= 100 {
+                    if download?.isReady == true {
                         Text("● READY")
                             .font(DS.Font.mono(9))
                             .tracking(1.0)
@@ -49,17 +49,17 @@ struct ModelCardView: View {
                     }
                 }
 
-                if let pct = dlPct, pct > 0 {
-                    OnboardingProgressBar(value: pct)
+                if let phase = download?.phase {
+                    OnboardingProgressBar(phase: phase)
                     HStack {
-                        Text(pct >= 100 ? "Downloaded · verified" : "Downloading · \(Int(pct))%")
+                        Text(phase.isIndeterminate ? phase.shortLabel : "Downloading · \(phase.shortLabel)")
                         Spacer()
-                        Text(pct >= 100 ? "Ready" : "\(Int(pct))% of \(model.displaySize)")
+                        Text(phase.fraction != nil ? "\(phase.shortLabel) of \(model.displaySize)" : model.displaySize)
                     }
                     .font(DS.Font.mono(10))
                     .foregroundStyle(DS.Palette.ink3)
                 }
-                if let errorText {
+                if let errorText = download?.errorText {
                     Text(errorText)
                         .font(DS.Font.mono(10))
                         .foregroundStyle(DS.Palette.accent)
@@ -76,6 +76,7 @@ struct ModelCardView: View {
                     .stroke(picked ? DS.Palette.ink : DS.Palette.ruleSoft, lineWidth: 1)
             )
             .shadow(color: .black.opacity(picked ? 0.08 : 0), radius: 18, y: 6)
+            .contentShape(RoundedRectangle(cornerRadius: 14))
             .overlay(alignment: .topTrailing) {
                 if model.recommended {
                     Text("Recommended")

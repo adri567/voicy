@@ -10,7 +10,7 @@ final class EngineViewModel {
 
     enum Status: Equatable {
         case notInstalled
-        case downloading(Double)
+        case downloading(DownloadPhase)
         case installed     // on disk, not currently active
         case active        // on disk and currently loaded
     }
@@ -42,17 +42,17 @@ final class EngineViewModel {
     }
 
     func install(family: Family, id: String) async {
-        statuses[id] = .downloading(0)
+        statuses[id] = .downloading(.preparing)
         lastError = nil
         do {
             switch family {
             case .whisper:
-                try await DefaultTranscriptionService.install(modelID: id) { fraction in
-                    Task { @MainActor in self.updateProgress(id: id, fraction: fraction) }
+                try await DefaultTranscriptionService.install(modelID: id) { phase in
+                    Task { @MainActor in self.updateProgress(id: id, phase: phase) }
                 }
             case .parakeet:
-                try await ParakeetTranscriptionService.install(version: id) { fraction in
-                    Task { @MainActor in self.updateProgress(id: id, fraction: fraction) }
+                try await ParakeetTranscriptionService.install(version: id) { phase in
+                    Task { @MainActor in self.updateProgress(id: id, phase: phase) }
                 }
             }
             statuses[id] = resolveStatus(
@@ -67,10 +67,11 @@ final class EngineViewModel {
 
     /// Updates the progress only if the model is still in the downloading
     /// state. Prevents late progress callbacks from overwriting a final
-    /// `.installed`/`.active` state set after `install` returned.
-    private func updateProgress(id: String, fraction: Double) {
-        guard case .downloading = statuses[id] else { return }
-        statuses[id] = .downloading(fraction)
+    /// `.installed`/`.active` state set after `install` returned, and keeps the
+    /// phase monotonic against out-of-order library callbacks.
+    private func updateProgress(id: String, phase: DownloadPhase) {
+        guard case .downloading(let current) = statuses[id] else { return }
+        statuses[id] = .downloading(current.advanced(to: phase))
     }
 
     func remove(family: Family, id: String) async {

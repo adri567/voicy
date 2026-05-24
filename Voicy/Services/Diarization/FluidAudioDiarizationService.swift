@@ -83,12 +83,10 @@ actor FluidAudioDiarizationService: DiarizationService {
         Self.isInstalled(variant: Self.activeVariant, stepSize: Self.activeStepSize)
     }
 
-    func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
-        if isModelInstalled(), diarizer != nil {
-            progress(1.0)
-            return
-        }
+    func installModel(progress: @escaping @Sendable (DownloadPhase) -> Void) async throws {
+        if isModelInstalled(), diarizer != nil { return }
         Log.diarization.debug("LS-EEND: install start — fetching from HuggingFace")
+        progress(.preparing)
         do {
             let model = try await LSEENDModel.loadFromHuggingFace(
                 variant: Self.activeVariant,
@@ -97,14 +95,14 @@ actor FluidAudioDiarizationService: DiarizationService {
                 computeUnits: .cpuOnly,
                 progressHandler: { p in
                     Log.diarization.debug("LS-EEND: progress \(p.fractionCompleted * 100, format: .fixed(precision: 0))% (\(String(describing: p.phase), privacy: .public))")
-                    progress(p.fractionCompleted)
+                    progress(.downloading(p.fractionCompleted))
                 }
             )
             Log.diarization.debug("LS-EEND: download finished, initializing diarizer")
+            progress(.finalizing)
             let d = LSEENDDiarizer(timelineConfig: nil)
             try d.initialize(model: model)
             diarizer = d
-            progress(1.0)
             Log.diarization.debug("LS-EEND: model installed")
         } catch {
             Log.diarization.error("LS-EEND: install failed: \(String(describing: error), privacy: .public)")

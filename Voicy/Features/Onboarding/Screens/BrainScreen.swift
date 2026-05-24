@@ -61,25 +61,14 @@ struct BrainScreen: View {
     }
 
     private var footer: some View {
-        let picked = state.pickedBrain
-        let downloading = picked != nil && state.brainDownload < 100
-        let primary: String = {
-            if picked == nil { return "Continue without a brain →" }
-            if state.brainDownload >= 100 { return "Continue →" }
-            return "Downloading… \(Int(state.brainDownload))%"
-        }()
-        let note: String = {
-            if let err = state.brainDownloadError { return "Error: \(err)" }
-            if let b = picked { return "\(b.name) \(b.variant) · \(Int(state.brainDownload))%" }
-            return "You can install one later in Settings → Brain"
-        }()
+        let hasPick = state.pickedBrain != nil
         return NavFooter(
-            primary: primary,
-            primaryDisabled: downloading,
-            onContinue: { state.next() },
-            secondary: picked == nil ? nil : "Clear selection",
-            onSkip: picked == nil ? nil : { state.clearBrainSelection() },
-            note: note
+            primary: state.brainPrimaryTitle,
+            primaryDisabled: state.brainPrimaryDisabled,
+            onContinue: { state.brainPrimaryAction() },
+            secondary: hasPick ? "Clear selection" : nil,
+            onSkip: hasPick ? { state.clearBrainSelection() } : nil,
+            note: state.brainFooterNote
         )
     }
 
@@ -123,6 +112,7 @@ struct BrainScreen: View {
                         RoundedRectangle(cornerRadius: 12)
                             .fill(state.brainID == nil ? DS.Palette.paper : Color.clear)
                     )
+                    .contentShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
 
@@ -134,10 +124,9 @@ struct BrainScreen: View {
                     BrainCardView(
                         brain: brain,
                         picked: state.brainID == brain.id,
-                        dlPct: state.brainID == brain.id ? state.brainDownload : nil,
-                        errorText: state.brainID == brain.id ? state.brainDownloadError : nil,
+                        download: state.brainID == brain.id ? state.brainState : nil,
                         onPick: {
-                            state.selectAndDownloadBrain(brain)
+                            state.selectBrain(brain)
                         }
                     )
                 }

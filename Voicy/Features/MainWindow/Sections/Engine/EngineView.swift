@@ -171,6 +171,8 @@ struct EngineView: View {
             Text("\(current.nameLeadingPart)\(Text(current.nameTrailingPart).italic())")
                 .font(DS.Font.serif(36))
                 .foregroundStyle(DS.Palette.paper)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
                 .padding(.bottom, 6)
 
             Text("\(current.familyName) · \(current.size) · loaded into RAM")

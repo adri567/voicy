@@ -30,9 +30,9 @@ protocol TranscriptionService: Sendable {
     /// from any isolation context.
     nonisolated func isModelInstalled() -> Bool
 
-    /// Downloads the model files with progress (fraction 0...1).
+    /// Downloads the model files, reporting coarse install phases.
     /// Idempotent — no-op if already installed.
-    nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws
+    nonisolated func installModel(progress: @escaping @Sendable (DownloadPhase) -> Void) async throws
 
     /// Unloads the model from RAM and removes its files from disk.
     nonisolated func removeModel() async throws

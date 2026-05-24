@@ -8,7 +8,7 @@ protocol DiarizationService: Sendable {
     nonisolated func diarize(at url: URL) async throws -> [DiarizationSegment]
 
     nonisolated func isModelInstalled() -> Bool
-    nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws
+    nonisolated func installModel(progress: @escaping @Sendable (DownloadPhase) -> Void) async throws
     nonisolated func removeModel() async throws
 }
 

@@ -3,8 +3,8 @@ import SwiftUI
 struct BrainCardView: View {
     let brain: OnboardingBrain
     let picked: Bool
-    let dlPct: Double?
-    let errorText: String?
+    /// Download state for *this* card, or `nil` if it isn't the selected one.
+    let download: DownloadUIState?
     let onPick: () -> Void
 
     var body: some View {
@@ -37,7 +37,7 @@ struct BrainCardView: View {
                         }
                     }
                     Spacer(minLength: 0)
-                    if let pct = dlPct, pct >= 100 {
+                    if download?.isReady == true {
                         Text("● READY")
                             .font(DS.Font.mono(9))
                             .tracking(1.0)
@@ -47,17 +47,17 @@ struct BrainCardView: View {
                             .background(DS.Palette.accent2, in: Capsule())
                     }
                 }
-                if let pct = dlPct, pct > 0 {
-                    OnboardingProgressBar(value: pct)
+                if let phase = download?.phase {
+                    OnboardingProgressBar(phase: phase)
                     HStack {
-                        Text(pct >= 100 ? "Downloaded · verified" : "Downloading · \(Int(pct))%")
+                        Text(phase.isIndeterminate ? phase.shortLabel : "Downloading · \(phase.shortLabel)")
                         Spacer()
-                        Text(pct >= 100 ? "SHA-256 ✓" : "\(Int(pct))% of \(brain.size)")
+                        Text(phase.fraction != nil ? "\(phase.shortLabel) of \(brain.size)" : brain.size)
                     }
                     .font(DS.Font.mono(10))
                     .foregroundStyle(DS.Palette.ink3)
                 }
-                if let errorText {
+                if let errorText = download?.errorText {
                     Text(errorText)
                         .font(DS.Font.mono(10))
                         .foregroundStyle(Color(red: 0.78, green: 0.22, blue: 0.18))
@@ -72,6 +72,7 @@ struct BrainCardView: View {
                 RoundedRectangle(cornerRadius: 12).stroke(picked ? DS.Palette.ink : DS.Palette.ruleSoft, lineWidth: 1)
             )
             .shadow(color: .black.opacity(picked ? 0.08 : 0), radius: 18, y: 6)
+            .contentShape(RoundedRectangle(cornerRadius: 12))
             .overlay(alignment: .topTrailing) {
                 if brain.recommended {
                     Text("Recommended")

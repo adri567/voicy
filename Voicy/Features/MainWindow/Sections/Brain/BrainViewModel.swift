@@ -10,7 +10,7 @@ final class BrainViewModel {
 
     enum Status: Equatable {
         case notInstalled
-        case downloading(Double)
+        case downloading(DownloadPhase)
         case installed     // on disk, not currently active
         case active        // on disk and currently loaded
     }
@@ -38,11 +38,11 @@ final class BrainViewModel {
     }
 
     func install(registryKey: String) async {
-        statuses[registryKey] = .downloading(0)
+        statuses[registryKey] = .downloading(.preparing)
         lastError = nil
         do {
-            try await MLXTextCorrectionService.install(registryKey: registryKey) { fraction in
-                Task { @MainActor in self.updateProgress(key: registryKey, fraction: fraction) }
+            try await MLXTextCorrectionService.install(registryKey: registryKey) { phase in
+                Task { @MainActor in self.updateProgress(key: registryKey, phase: phase) }
             }
             let isActive = registryKey == MLXTextCorrectionService.activeRegistryKey
             statuses[registryKey] = isActive ? .active : .installed
@@ -54,10 +54,11 @@ final class BrainViewModel {
 
     /// Updates the progress only if the model is still in the downloading
     /// state. Prevents late progress callbacks from overwriting a final
-    /// `.installed`/`.active` state set after `install` returned.
-    private func updateProgress(key: String, fraction: Double) {
-        guard case .downloading = statuses[key] else { return }
-        statuses[key] = .downloading(fraction)
+    /// `.installed`/`.active` state set after `install` returned, and keeps the
+    /// phase monotonic against out-of-order library callbacks.
+    private func updateProgress(key: String, phase: DownloadPhase) {
+        guard case .downloading(let current) = statuses[key] else { return }
+        statuses[key] = .downloading(current.advanced(to: phase))
     }
 
     func remove(registryKey: String) async {

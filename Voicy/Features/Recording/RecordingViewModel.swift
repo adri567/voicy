@@ -49,7 +49,7 @@ final class RecordingViewModel {
     /// (or never set) but another one is on disk. Cheap enough to call on
     /// every render; not reactive on install-while-running.
     var isBrainInstalled: Bool {
-        MLXTextCorrectionService.ensureActiveBrainInstalled() != nil
+        correctionService.ensureModelAvailable()
     }
 
     @ObservationIgnored private var levelTask: Task<Void, Never>?
@@ -280,7 +280,7 @@ final class RecordingViewModel {
             if mode.type == .snippets, !result.text.isEmpty {
                 finalText = await snippetService.apply(to: result.text)
             } else if mode.type != .raw, !result.text.isEmpty {
-                if MLXTextCorrectionService.ensureActiveBrainInstalled() != nil {
+                if correctionService.ensureModelAvailable() {
                     state = .correcting
                     if let corrected = await runCorrection(text: result.text,
                                                            mode: mode,

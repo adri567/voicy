@@ -18,11 +18,9 @@ final class OnboardingState {
 
     // Selections
     var modelID: String = "parakeet"
-    var modelDownload: Double = 0  // 0…100
-    var modelDownloadError: String? = nil
+    var modelState: DownloadUIState = .idle
     var brainID: String? = nil
-    var brainDownload: Double = 0
-    var brainDownloadError: String? = nil
+    var brainState: DownloadUIState = .idle
     var languageCode: String = "en"
 
     private var modelDownloadTask: Task<Void, Never>? = nil
@@ -52,15 +50,92 @@ final class OnboardingState {
         LanguageCatalog.language(for: languageCode)
     }
 
-    // MARK: - Model download
+    // MARK: - Footer copy (model)
 
-    /// Cancels any in-flight download and starts a new one for `model`.
-    /// If the model is already installed, jumps straight to 100% and warms
-    /// the singleton service so the practice screen has it loaded.
-    func selectAndDownloadModel(_ model: OnboardingModel) {
+    /// Title for the model step's primary button.
+    var modelPrimaryTitle: String {
+        switch modelState {
+        case .ready:               return "Continue →"
+        case .inProgress(let p):   return "Downloading \(pickedModel.label) — \(p.shortLabel)"
+        case .idle, .failed:       return "Download \(pickedModel.label) (\(pickedModel.displaySize))"
+        }
+    }
+
+    var modelPrimaryDisabled: Bool { modelState.isInProgress }
+
+    /// Sub-label under the model step's primary button.
+    var modelFooterNote: String {
+        switch modelState {
+        case .failed(let message): return "Error: \(message)"
+        case .ready:               return "\(pickedModel.family) \(pickedModel.label) ready"
+        case .inProgress(let p):
+            if let fraction = p.fraction {
+                return "\(Int(fraction * 100))% of \(pickedModel.displaySize)"
+            }
+            return p.shortLabel
+        case .idle:
+            return "Click to fetch \(pickedModel.family) \(pickedModel.label)"
+        }
+    }
+
+    /// Primary button action for the model step: continue once ready,
+    /// otherwise start the download for the selected model.
+    func modelPrimaryAction() {
+        if modelState.isReady {
+            // The picked model may be the pre-selected default that never went
+            // through `selectModel` (e.g. already on disk at first launch), so
+            // its engine choice isn't persisted yet. Commit it before leaving —
+            // otherwise the practice screen resolves the wrong engine.
+            Self.persistEngineChoice(pickedModel)
+            next()
+        } else {
+            downloadSelectedModel()
+        }
+    }
+
+    // MARK: - Footer copy (brain)
+
+    var brainPrimaryTitle: String {
+        guard let brain = pickedBrain else { return "Continue without a brain →" }
+        switch brainState {
+        case .ready:             return "Continue →"
+        case .inProgress(let p): return "Downloading… \(p.shortLabel)"
+        case .idle, .failed:     return "Download \(brain.name) \(brain.variant) (\(brain.size))"
+        }
+    }
+
+    var brainPrimaryDisabled: Bool {
+        pickedBrain != nil && brainState.isInProgress
+    }
+
+    /// Primary button action for the brain step: continue when nothing is
+    /// picked or it's ready, otherwise start the download for the picked brain.
+    func brainPrimaryAction() {
+        guard pickedBrain != nil else { next(); return }
+        if brainState.isReady { next() } else { downloadSelectedBrain() }
+    }
+
+    var brainFooterNote: String {
+        if let message = brainState.errorText { return "Error: \(message)" }
+        guard let brain = pickedBrain else {
+            return "You can install one later in Settings → Brain"
+        }
+        switch brainState {
+        case .inProgress(let p): return "\(brain.name) \(brain.variant) · \(p.shortLabel)"
+        case .ready:             return "\(brain.name) \(brain.variant) · ready"
+        case .idle, .failed:     return "\(brain.name) \(brain.variant)"
+        }
+    }
+
+    // MARK: - Model selection & download
+
+    /// Selects a model without downloading anything. Picks the radio, persists
+    /// the engine choice, and reflects whether it's already on disk. The actual
+    /// download only happens later via `downloadSelectedModel()` (the footer
+    /// button) — selecting a card must never start a download.
+    func selectModel(_ model: OnboardingModel) {
         modelDownloadTask?.cancel()
         modelID = model.id
-        modelDownloadError = nil
 
         // Persist the engine choice up-front so `TranscriptionEngine.current`
         // already reflects this model before the practice screen wires up
@@ -68,38 +143,51 @@ final class OnboardingState {
         // wrong engine and falls back to the previous (or default) one.
         Self.persistEngineChoice(model)
 
-        // Already on disk? Skip the download, but still warm the singleton.
+        // Already on disk? Ready immediately, warm the singleton in the
+        // background (RAM load of existing files — not a download).
         if isModelInstalled(model) {
-            modelDownload = 100
+            modelState = .ready
             modelDownloadTask = Task { @MainActor [weak self] in
                 try? await Self.loadAfterInstall(model)
                 _ = self
             }
-            return
+        } else {
+            modelState = .idle
         }
+    }
 
-        modelDownload = 0
+    /// Downloads the currently selected model. Triggered explicitly by the
+    /// footer button — no-op if it's already downloading or ready.
+    func downloadSelectedModel() {
+        let model = pickedModel
+        guard !modelState.isReady, !modelState.isInProgress else { return }
+        // Downloading commits this model as the active engine — persist now so
+        // the practice screen (and the app afterwards) resolves it correctly,
+        // even if the card was the pre-selected default and never tapped.
+        Self.persistEngineChoice(model)
+        modelDownloadTask?.cancel()
+        modelState = .inProgress(.preparing)
         modelDownloadTask = Task { @MainActor [weak self] in
             do {
-                try await Self.install(model) { progress in
+                try await Self.install(model) { phase in
                     Task { @MainActor in
-                        guard let self else { return }
-                        // Ignore stale callbacks if the picker has moved on.
-                        guard self.modelID == model.id else { return }
-                        self.modelDownload = max(self.modelDownload, min(99, progress * 100))
+                        guard let self, self.modelID == model.id else { return }
+                        self.modelState = self.modelState.advanced(to: phase)
                     }
                 }
                 guard !Task.isCancelled, self?.modelID == model.id else { return }
                 // Load the just-downloaded files into the app's singleton
-                // service so the user doesn't pay the load cost on their
-                // first Fn-press in the practice screen.
+                // service so the user doesn't pay the load cost on their first
+                // Fn-press in the practice screen — the onboarding "finalizing".
+                self?.modelState = .inProgress(.finalizing)
                 try? await Self.loadAfterInstall(model)
-                self?.modelDownload = 100
+                guard let self, self.modelID == model.id else { return }
+                self.modelState = .ready
             } catch is CancellationError {
                 // Picker moved on — no-op.
             } catch {
                 if self?.modelID == model.id {
-                    self?.modelDownloadError = error.localizedDescription
+                    self?.modelState = .failed(error.localizedDescription)
                 }
             }
         }
@@ -134,38 +222,42 @@ final class OnboardingState {
         }
     }
 
-    // MARK: - Brain download
+    // MARK: - Brain selection & download
 
-    /// Cancels any in-flight brain download and starts a new one for `brain`.
-    /// If the brain is already installed, jumps straight to 100%.
-    func selectAndDownloadBrain(_ brain: OnboardingBrain) {
+    /// Selects a brain without downloading anything. Picks the radio and
+    /// reflects whether it's already on disk. The download only happens later
+    /// via `downloadSelectedBrain()` (the footer button).
+    func selectBrain(_ brain: OnboardingBrain) {
         brainDownloadTask?.cancel()
         brainID = brain.id
-        brainDownloadError = nil
+        brainState = MLXTextCorrectionService.isInstalled(registryKey: brain.registryKey)
+            ? .ready
+            : .idle
+    }
 
-        if MLXTextCorrectionService.isInstalled(registryKey: brain.registryKey) {
-            brainDownload = 100
-            return
-        }
-
-        brainDownload = 0
+    /// Downloads the currently selected brain. Triggered explicitly by the
+    /// footer button — no-op if it's already downloading or ready.
+    func downloadSelectedBrain() {
+        guard let brain = pickedBrain else { return }
+        guard !brainState.isReady, !brainState.isInProgress else { return }
+        brainDownloadTask?.cancel()
+        brainState = .inProgress(.preparing)
         brainDownloadTask = Task { @MainActor [weak self] in
             do {
-                try await MLXTextCorrectionService.install(registryKey: brain.registryKey) { fraction in
+                try await MLXTextCorrectionService.install(registryKey: brain.registryKey) { phase in
                     Task { @MainActor in
-                        guard let self else { return }
-                        guard self.brainID == brain.id else { return }
-                        self.brainDownload = max(self.brainDownload, min(99, fraction * 100))
+                        guard let self, self.brainID == brain.id else { return }
+                        self.brainState = self.brainState.advanced(to: phase)
                     }
                 }
                 if !Task.isCancelled, self?.brainID == brain.id {
-                    self?.brainDownload = 100
+                    self?.brainState = .ready
                 }
             } catch is CancellationError {
                 // Picker moved on — no-op.
             } catch {
                 if self?.brainID == brain.id {
-                    self?.brainDownloadError = error.localizedDescription
+                    self?.brainState = .failed(error.localizedDescription)
                 }
             }
         }
@@ -175,12 +267,11 @@ final class OnboardingState {
     func clearBrainSelection() {
         brainDownloadTask?.cancel()
         brainID = nil
-        brainDownload = 0
-        brainDownloadError = nil
+        brainState = .idle
     }
 
     private static func install(_ model: OnboardingModel,
-                                progress: @escaping @Sendable (Double) -> Void) async throws {
+                                progress: @escaping @Sendable (DownloadPhase) -> Void) async throws {
         switch model.engine {
         case .whisper:
             try await DefaultTranscriptionService.install(modelID: model.realID, progress: progress)
@@ -279,12 +370,12 @@ final class OnboardingState {
         }
         // If the default model is already on disk, show it as ready.
         if isModelInstalled(pickedModel) {
-            modelDownload = 100
+            modelState = .ready
         }
         // If a previously-selected brain is already on disk, mirror that.
         if let brain = pickedBrain,
            MLXTextCorrectionService.isInstalled(registryKey: brain.registryKey) {
-            brainDownload = 100
+            brainState = .ready
         }
     }
 

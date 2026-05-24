@@ -116,6 +116,10 @@ struct LanguageScreen: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(active ? DS.Palette.ink : DS.Palette.ruleSoft, lineWidth: 1)
             )
+            // Make the whole tile tappable — without this, the transparent
+            // areas of an unselected tile don't register taps and only the
+            // flag/text are hittable.
+            .contentShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }

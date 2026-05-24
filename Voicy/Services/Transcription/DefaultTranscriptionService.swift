@@ -35,7 +35,11 @@ actor DefaultTranscriptionService: TranscriptionService {
         }
         let model = Self.activeModelID
         Log.transcription.debug("WhisperKit: loading model from cache: \(model, privacy: .public)")
-        whisperKit = try await WhisperKit(model: model)
+        // `load: true` forces loadModels() inside the init — without it
+        // WhisperKit only resolves the folder and defers loading + CoreML/ANE
+        // specialization to the first transcribe(), which blocks that call for
+        // tens of seconds. Loading here moves that cost into the load phase.
+        whisperKit = try await WhisperKit(WhisperKitConfig(model: model, load: true))
         Log.transcription.debug("WhisperKit: model loaded successfully")
     }
 
@@ -139,19 +143,20 @@ actor DefaultTranscriptionService: TranscriptionService {
         ModelStorage.exists(at: ModelStorage.whisperKitPath(model: Self.activeModelID))
     }
 
-    func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
-        if isModelInstalled(), whisperKit != nil {
-            progress(1.0)
-            return
-        }
-        // WhisperKit() downloads via HubApi when the cache is empty, then loads
-        // into RAM. No per-file progress hook in the public init — we report
-        // 0 → 1 around the call.
-        progress(0.05)
+    func installModel(progress: @escaping @Sendable (DownloadPhase) -> Void) async throws {
+        if isModelInstalled(), whisperKit != nil { return }
         let model = Self.activeModelID
-        let kit = try await WhisperKit(model: model)
-        whisperKit = kit
-        progress(1.0)
+        // Download with real byte-level progress, then load into RAM. The RAM
+        // load also runs the CoreML specialization compile — slow and with no
+        // measurable fraction, hence `.finalizing`.
+        progress(.preparing)
+        if !isModelInstalled() {
+            _ = try await WhisperKit.download(variant: model) { p in
+                progress(.downloading(p.fractionCompleted))
+            }
+        }
+        progress(.finalizing)
+        whisperKit = try await WhisperKit(WhisperKitConfig(model: model, load: true))
     }
 
     func removeModel() async throws {
@@ -166,15 +171,16 @@ actor DefaultTranscriptionService: TranscriptionService {
         ModelStorage.exists(at: ModelStorage.whisperKitPath(model: modelID))
     }
 
-    /// Downloads the given model into the WhisperKit cache. Briefly instantiates
-    /// `WhisperKit(model:)` to trigger the download, then discards the instance —
-    /// the model lives on disk afterwards. RAM-loading of the *active* model
-    /// happens later, on next app launch.
-    nonisolated static func install(modelID: String, progress: @escaping @Sendable (Double) -> Void) async throws {
-        progress(0.05)
-        let kit = try await WhisperKit(model: modelID)
-        _ = kit
-        progress(1.0)
+    /// Downloads the given model into the WhisperKit cache with real byte-level
+    /// progress via `WhisperKit.download`. Files only — RAM-loading of the
+    /// *active* model happens later, on next app launch, so there is no
+    /// `.finalizing` phase here.
+    nonisolated static func install(modelID: String, progress: @escaping @Sendable (DownloadPhase) -> Void) async throws {
+        if isInstalled(modelID: modelID) { return }
+        progress(.preparing)
+        _ = try await WhisperKit.download(variant: modelID) { p in
+            progress(.downloading(p.fractionCompleted))
+        }
     }
 
     nonisolated static func remove(modelID: String) throws {

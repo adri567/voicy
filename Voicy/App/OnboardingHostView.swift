@@ -16,7 +16,7 @@ struct OnboardingHostView: View {
             openWindow(id: MainWindowID.id)
             dismissWindow(id: OnboardingWindowID.id)
         }
-        .frame(minWidth: 1280, minHeight: 820)
+        .frame(minWidth: 1200, minHeight: 680)
         .background(
             WindowCloseHandler {
                 // The window can close two ways: a clean finish (which has

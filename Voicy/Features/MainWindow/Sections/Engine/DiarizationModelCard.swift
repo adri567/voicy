@@ -25,7 +25,7 @@ struct DiarizationModelCard: View {
 
     enum Status: Equatable {
         case notInstalled
-        case downloading(Double)
+        case downloading(DownloadPhase)
         case installed
     }
 
@@ -118,14 +118,9 @@ struct DiarizationModelCard: View {
         switch status {
         case .notInstalled:
             installButton
-        case .downloading(let fraction):
-            VStack(alignment: .trailing, spacing: 6) {
-                ProgressBar(fraction: fraction)
-                    .frame(width: 140)
-                Text(fraction <= 0.001 ? "Connecting…" : "\(Int(fraction * 100))%")
-                    .font(DS.Font.mono(10))
-                    .foregroundStyle(DS.Palette.ink3)
-            }
+        case .downloading(let phase):
+            ProgressBar(phase: phase)
+                .frame(width: 140)
         case .installed:
             VStack(alignment: .trailing, spacing: 10) {
                 MetaLabel(text: "Ready")
@@ -155,15 +150,16 @@ struct DiarizationModelCard: View {
     private func install() {
         guard case .notInstalled = status else { return }
         Log.diarization.debug("Sortformer: install tapped")
-        status = .downloading(0)
+        status = .downloading(.preparing)
         task?.cancel()
         task = Task { [service] in
             do {
-                try await service.installModel { fraction in
+                try await service.installModel { phase in
                     // progress closure can fire on any executor — hop to main
                     // before touching SwiftUI state.
                     Task { @MainActor in
-                        status = .downloading(fraction)
+                        guard case .downloading(let current) = status else { return }
+                        status = .downloading(current.advanced(to: phase))
                     }
                 }
                 await MainActor.run { status = .installed }

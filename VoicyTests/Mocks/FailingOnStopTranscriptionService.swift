@@ -14,6 +14,6 @@ final class FailingOnStopTranscriptionService: TranscriptionService {
         throw TestError.transcriptionFailed
     }
     nonisolated func isModelInstalled() -> Bool { true }
-    nonisolated func installModel(progress: @escaping @Sendable (Double) -> Void) async throws { progress(1.0) }
+    nonisolated func installModel(progress: @escaping @Sendable (DownloadPhase) -> Void) async throws { progress(.downloading(1.0)) }
     nonisolated func removeModel() async throws {}
 }

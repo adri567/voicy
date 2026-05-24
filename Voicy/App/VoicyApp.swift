@@ -33,7 +33,7 @@ struct VoicyApp: App {
         Window("Voicy — Onboarding", id: OnboardingWindowID.id) {
             OnboardingHostView()
         }
-        .defaultSize(width: 1280, height: 820)
+        .defaultSize(width: 1440, height: 860)
         .windowResizability(.contentMinSize)
         .windowStyle(.hiddenTitleBar)
     }

@@ -93,8 +93,8 @@ struct LLMRow: View {
                 .padding(.vertical, 8)
                 .overlay(Capsule().stroke(DS.Palette.ink, lineWidth: 1))
             TrashButton(onTap: onRemove)
-        case .downloading(let fraction):
-            ProgressBar(fraction: fraction)
+        case .downloading(let phase):
+            ProgressBar(phase: phase)
                 .frame(width: 140)
         case .notInstalled:
             Button(action: onInstall) {

@@ -178,20 +178,18 @@ actor ParakeetTranscriptionService: TranscriptionService {
         Self.isInstalled(version: Self.activeVersion)
     }
 
-    func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
+    func installModel(progress: @escaping @Sendable (DownloadPhase) -> Void) async throws {
         let v = Self.asrVersion(for: Self.activeVersion)
-        if isModelInstalled(), asrManager != nil {
-            progress(1.0)
-            return
-        }
+        if isModelInstalled(), asrManager != nil { return }
         Log.transcription.debug("Parakeet: installing model with progress")
+        progress(.preparing)
         let models = try await AsrModels.downloadAndLoad(version: v) { p in
-            progress(p.fractionCompleted)
+            progress(.downloading(p.fractionCompleted))
         }
+        progress(.finalizing)
         let manager = AsrManager(config: .default)
         try await manager.loadModels(models)
         asrManager = manager
-        progress(1.0)
         Log.transcription.debug("Parakeet: model installed")
     }
 
@@ -209,14 +207,15 @@ actor ParakeetTranscriptionService: TranscriptionService {
     }
 
     /// Downloads the given Parakeet version to disk without loading into RAM.
-    nonisolated static func install(version: String, progress: @escaping @Sendable (Double) -> Void) async throws {
+    /// No `.finalizing` phase — RAM-loading happens on next app launch. The
+    /// ViewModel sets the terminal `.installed` state after this returns.
+    nonisolated static func install(version: String, progress: @escaping @Sendable (DownloadPhase) -> Void) async throws {
+        if isInstalled(version: version) { return }
         let v = asrVersion(for: version)
+        progress(.preparing)
         _ = try await AsrModels.download(version: v) { p in
-            progress(p.fractionCompleted)
+            progress(.downloading(p.fractionCompleted))
         }
-        // No final progress(1.0) — the ViewModel sets the terminal state after
-        // `install` returns. A trailing 1.0 here would race with that and can
-        // overwrite `.installed` with `.downloading(1.0)` in the UI.
     }
 
     nonisolated static func remove(version: String) throws {

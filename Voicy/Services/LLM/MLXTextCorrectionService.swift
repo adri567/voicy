@@ -37,14 +37,16 @@ actor MLXTextCorrectionService: TextCorrectionService {
         Log.llm.debug("MLX: \(Self.activeRegistryKey, privacy: .public) loaded")
     }
 
-    func installModel(progress: @escaping @Sendable (Double) -> Void) async throws {
-        if container != nil, isModelInstalled() {
-            progress(1.0)
-            return
-        }
+    func installModel(progress: @escaping @Sendable (DownloadPhase) -> Void) async throws {
+        if container != nil, isModelInstalled() { return }
         Log.llm.debug("MLX: installing \(Self.activeRegistryKey, privacy: .public)")
-        try await runLoad(onProgress: progress)
-        progress(1.0)
+        progress(.preparing)
+        // `runLoad` downloads *and* builds the container (GPU/RAM). The byte
+        // fraction only covers the download; once it hits 1.0 the container is
+        // still building, so map that tail to `.finalizing`.
+        try await runLoad { fraction in
+            progress(fraction >= 1.0 ? .finalizing : .downloading(fraction))
+        }
         Log.llm.debug("MLX: \(Self.activeRegistryKey, privacy: .public) installed")
     }
 
@@ -119,6 +121,10 @@ actor MLXTextCorrectionService: TextCorrectionService {
         Self.isInstalled(registryKey: Self.activeRegistryKey)
     }
 
+    nonisolated func ensureModelAvailable() -> Bool {
+        Self.ensureActiveBrainInstalled() != nil
+    }
+
     func removeModel() async throws {
         container = nil
         try Self.remove(registryKey: Self.activeRegistryKey)
@@ -156,18 +162,20 @@ actor MLXTextCorrectionService: TextCorrectionService {
     /// Downloads the model into the HuggingFace cache. Loads it briefly into a
     /// container to trigger the download, then discards the container — the
     /// files remain on disk. RAM-loading of the *active* model happens on next
-    /// app launch.
-    nonisolated static func install(registryKey: String, progress: @escaping @Sendable (Double) -> Void) async throws {
+    /// app launch. The byte fraction only covers the download; the container
+    /// build that follows the last byte is reported as `.finalizing`.
+    nonisolated static func install(registryKey: String, progress: @escaping @Sendable (DownloadPhase) -> Void) async throws {
+        if isInstalled(registryKey: registryKey) { return }
         let config = configuration(for: registryKey)
+        progress(.preparing)
         _ = try await #huggingFaceLoadModelContainer(
             configuration: config,
             progressHandler: { p in
                 guard p.totalUnitCount > 0 else { return }
                 let fraction = Double(p.completedUnitCount) / Double(p.totalUnitCount)
-                progress(fraction)
+                progress(fraction >= 1.0 ? .finalizing : .downloading(fraction))
             }
         )
-        progress(1.0)
     }
 
     nonisolated static func remove(registryKey: String) throws {

@@ -32,7 +32,7 @@ struct EngineViewModelTests {
         vm.statuses = [
             "a": .notInstalled,
             "b": .active,
-            "c": .downloading(0.5),
+            "c": .downloading(.downloading(0.5)),
             "d": .installed
         ]
         #expect(vm.sortedModels(models).map(\.libraryID) == ["b", "d", "c", "a"])

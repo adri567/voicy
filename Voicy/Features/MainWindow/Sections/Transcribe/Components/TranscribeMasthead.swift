@@ -34,6 +34,9 @@ struct TranscribeMasthead: View {
                     .foregroundStyle(DS.Palette.accent)
                 MetaLabel(text: "The Studio", color: DS.Palette.accent)
                     .font(DS.Font.mono(9))
+                Text("Beta")
+                    .dsTag()
+                    .padding(.leading, 6)
             }
             .padding(.bottom, 14)
 

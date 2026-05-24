@@ -28,30 +28,11 @@ struct ModelScreen: View {
     }
 
     private var footer: some View {
-        let ready = state.modelDownload >= 100
-        let downloading = state.modelDownload > 0 && !ready
-        let primary: String = {
-            if ready { return "Continue →" }
-            if downloading { return "Downloading \(state.pickedModel.label) — \(Int(state.modelDownload))%" }
-            return "Download \(state.pickedModel.label) (\(state.pickedModel.displaySize))"
-        }()
-        let note: String = {
-            if let err = state.modelDownloadError { return "Error: \(err)" }
-            if ready { return "\(state.pickedModel.family) \(state.pickedModel.label) ready" }
-            if downloading { return "\(Int(state.modelDownload))% of \(state.pickedModel.displaySize)" }
-            return "Click to fetch \(state.pickedModel.family) \(state.pickedModel.label)"
-        }()
-        return NavFooter(
-            primary: primary,
-            primaryDisabled: downloading,
-            onContinue: {
-                if ready {
-                    state.next()
-                } else {
-                    state.selectAndDownloadModel(state.pickedModel)
-                }
-            },
-            note: note
+        NavFooter(
+            primary: state.modelPrimaryTitle,
+            primaryDisabled: state.modelPrimaryDisabled,
+            onContinue: { state.modelPrimaryAction() },
+            note: state.modelFooterNote
         )
     }
 
@@ -63,10 +44,9 @@ struct ModelScreen: View {
                     ModelCardView(
                         model: model,
                         picked: state.modelID == model.id,
-                        dlPct: state.modelID == model.id ? state.modelDownload : nil,
-                        errorText: state.modelID == model.id ? state.modelDownloadError : nil,
+                        download: state.modelID == model.id ? state.modelState : nil,
                         onPick: {
-                            state.selectAndDownloadModel(model)
+                            state.selectModel(model)
                         }
                     )
                 }
