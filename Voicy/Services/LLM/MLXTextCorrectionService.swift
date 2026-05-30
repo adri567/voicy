@@ -79,7 +79,6 @@ actor MLXTextCorrectionService: TextCorrectionService {
         "gemma4_e2b_it_4bit",
         "gemma4_e4b_it_4bit",
         "qwen2_5_7b",
-        "llama3_1_8B_4bit",
     ]
 
     func correct(
@@ -188,7 +187,6 @@ actor MLXTextCorrectionService: TextCorrectionService {
         case "gemma4_e2b_it_4bit":  return LLMRegistry.gemma4_e2b_it_4bit
         case "gemma4_e4b_it_4bit":  return LLMRegistry.gemma4_e4b_it_4bit
         case "qwen2_5_7b":          return LLMRegistry.qwen2_5_7b
-        case "llama3_1_8B_4bit":    return LLMRegistry.llama3_1_8B_4bit
         default:                    return LLMRegistry.gemma4_e2b_it_4bit
         }
     }
@@ -198,7 +196,6 @@ actor MLXTextCorrectionService: TextCorrectionService {
         case "gemma4_e2b_it_4bit": return "mlx-community/gemma-4-e2b-it-4bit"
         case "gemma4_e4b_it_4bit": return "mlx-community/gemma-4-e4b-it-4bit"
         case "qwen2_5_7b":         return "mlx-community/Qwen2.5-7B-Instruct-4bit"
-        case "llama3_1_8B_4bit":   return "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit"
         default: return nil
         }
     }
