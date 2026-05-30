@@ -104,6 +104,7 @@ struct SelectionViewModelTests {
         #expect(selection.writtenText == "hello")
         #expect(viewModel.phase == .idle)
         #expect(viewModel.runningAction == nil)
+        #expect(viewModel.isWorking == false)
     }
 
     @Test("Falls back to paste when AX set fails", arguments: SelectionAction.allCases)
@@ -167,6 +168,7 @@ struct SelectionViewModelTests {
             proofreadTimeout: .seconds(60)
         )
         await onPhase(.working, of: viewModel) { viewModel.run(.proofread) }
+        #expect(viewModel.isWorking)
         viewModel.run(.rephrase)  // ignored: already working
         #expect(viewModel.runningAction == .proofread)
         #expect(viewModel.phase == .working)

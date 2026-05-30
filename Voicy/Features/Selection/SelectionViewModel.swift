@@ -19,6 +19,10 @@ final class SelectionViewModel {
     /// the spinner/warning only on itself.
     private(set) var runningAction: SelectionAction?
 
+    /// True while an action is actively running. The coordinator uses this to
+    /// block the Fn hotkey so starting a recording can't interrupt a correction.
+    var isWorking: Bool { phase == .working }
+
     /// Called after every selection- or phase change so the owner
     /// (AppCoordinator) can re-evaluate panel visibility. Keeps window
     /// orchestration out of the view model.

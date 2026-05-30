@@ -110,6 +110,12 @@ final class AppCoordinator {
     }
 
     private func handleFnPress() async {
+        // Block recording while a selection action (proofread/rephrase) is in
+        // flight — starting a recording would interrupt it and leave the
+        // correction half-applied. No recording is active in this state (the
+        // selection pill only shows when idle), so it's safe to bail at the top.
+        if selectionViewModel.isWorking { return }
+
         // Toggle exit: any press while in toggle stops + transcribes.
         // Clearing lastFnReleaseTime here prevents this press being
         // misread as the first half of a new double-tap.
