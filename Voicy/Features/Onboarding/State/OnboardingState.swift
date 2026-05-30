@@ -56,8 +56,8 @@ final class OnboardingState {
     var modelPrimaryTitle: String {
         switch modelState {
         case .ready:               return "Continue →"
-        case .inProgress(let p):   return "Downloading \(pickedModel.label) — \(p.shortLabel)"
-        case .idle, .failed:       return "Download \(pickedModel.label) (\(pickedModel.displaySize))"
+        case .inProgress(let p):   return "Downloading \(pickedModel.name) — \(p.shortLabel)"
+        case .idle, .failed:       return "Download \(pickedModel.name) (\(pickedModel.displaySize))"
         }
     }
 
@@ -67,14 +67,14 @@ final class OnboardingState {
     var modelFooterNote: String {
         switch modelState {
         case .failed(let message): return "Error: \(message)"
-        case .ready:               return "\(pickedModel.family) \(pickedModel.label) ready"
+        case .ready:               return "\(pickedModel.name) ready"
         case .inProgress(let p):
             if let fraction = p.fraction {
                 return "\(Int(fraction * 100))% of \(pickedModel.displaySize)"
             }
             return p.shortLabel
         case .idle:
-            return "Click to fetch \(pickedModel.family) \(pickedModel.label)"
+            return "Click to fetch \(pickedModel.name)"
         }
     }
 
@@ -100,7 +100,7 @@ final class OnboardingState {
         switch brainState {
         case .ready:             return "Continue →"
         case .inProgress(let p): return "Downloading… \(p.shortLabel)"
-        case .idle, .failed:     return "Download \(brain.name) \(brain.variant) (\(brain.size))"
+        case .idle, .failed:     return "Download \(brain.name) (\(brain.size))"
         }
     }
 
@@ -121,9 +121,9 @@ final class OnboardingState {
             return "You can install one later in Settings → Brain"
         }
         switch brainState {
-        case .inProgress(let p): return "\(brain.name) \(brain.variant) · \(p.shortLabel)"
-        case .ready:             return "\(brain.name) \(brain.variant) · ready"
-        case .idle, .failed:     return "\(brain.name) \(brain.variant)"
+        case .inProgress(let p): return "\(brain.name) · \(p.shortLabel)"
+        case .ready:             return "\(brain.name) · ready"
+        case .idle, .failed:     return "\(brain.name)"
         }
     }
 

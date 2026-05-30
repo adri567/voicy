@@ -3,7 +3,6 @@ import SwiftUI
 /// Two-column screen scaffold used by every onboarding step.
 /// Editorial left column (title + lead + body + footer), right column (form / illustration).
 struct ScreenShell<Title: View, LeftBody: View, LeftFooter: View, Right: View>: View {
-    let chapter: String
     let kicker: String
     let titleView: Title
     let lead: String?
@@ -12,7 +11,6 @@ struct ScreenShell<Title: View, LeftBody: View, LeftFooter: View, Right: View>: 
     let rightCol: Right
 
     init(
-        chapter: String,
         kicker: String,
         @ViewBuilder title: () -> Title,
         lead: String? = nil,
@@ -20,7 +18,6 @@ struct ScreenShell<Title: View, LeftBody: View, LeftFooter: View, Right: View>: 
         @ViewBuilder leftFooter: () -> LeftFooter = { EmptyView() },
         @ViewBuilder rightCol: () -> Right
     ) {
-        self.chapter = chapter
         self.kicker = kicker
         self.titleView = title()
         self.lead = lead

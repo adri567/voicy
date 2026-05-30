@@ -7,8 +7,7 @@ struct LanguageScreen: View {
 
     var body: some View {
         ScreenShell(
-            chapter: "05",
-            kicker: "Chapter 05 — Tongue",
+            kicker: "Tongue",
             title: { titleView },
             lead: "Pick the one you'll dictate in most. Voicy will optimise the engine for it. You can switch later in Settings — and Voicy still understands code-switching mid-sentence.",
             body: { leftBody },
@@ -62,7 +61,8 @@ struct LanguageScreen: View {
         NavFooter(
             primary: "Continue →",
             onContinue: { state.next() },
-            note: "Engine tuned for \(state.pickedLanguage.code.uppercased())"
+            note: "Engine tuned for \(state.pickedLanguage.code.uppercased())",
+            onBack: { state.back() }
         )
     }
 

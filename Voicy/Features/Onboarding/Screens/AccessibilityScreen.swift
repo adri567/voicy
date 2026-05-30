@@ -5,8 +5,7 @@ struct AccessibilityScreen: View {
 
     var body: some View {
         ScreenShell(
-            chapter: "02",
-            kicker: "Chapter 02 — Permission",
+            kicker: "Permission",
             title: { titleView },
             lead: nil,
             body: { leftBody },
@@ -59,7 +58,8 @@ struct AccessibilityScreen: View {
             primary: "Continue →",
             primaryDisabled: state.a11yPermission != .granted,
             onContinue: { state.next() },
-            note: state.a11yPermission == .granted ? "Permission granted" : "Accessibility access required"
+            note: state.a11yPermission == .granted ? "Permission granted" : "Accessibility access required",
+            onBack: { state.back() }
         )
     }
 
@@ -144,8 +144,9 @@ struct AccessibilityScreen: View {
                 Image(nsImage: appIcon)
                     .resizable()
                     .frame(width: 26, height: 26)
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             } else {
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(DS.Palette.ink)
                     .frame(width: 26, height: 26)
             }

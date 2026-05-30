@@ -7,9 +7,20 @@ struct NavFooter: View {
     var secondary: String? = nil
     var onSkip: (() -> Void)? = nil
     var note: String? = nil
+    /// When set, a subtle "← Back" control is shown before the primary button.
+    var onBack: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 14) {
+            if let onBack {
+                Button(action: onBack) {
+                    Text("← Back")
+                        .font(DS.Font.sans(13, weight: .medium))
+                        .foregroundStyle(DS.Palette.ink3)
+                        .padding(.vertical, 13)
+                }
+                .buttonStyle(.plain)
+            }
             PrimaryButton(title: primary, disabled: primaryDisabled, action: onContinue)
             if let secondary, let onSkip {
                 GhostButton(title: secondary, action: onSkip)

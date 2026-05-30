@@ -5,10 +5,9 @@ struct ModelScreen: View {
 
     var body: some View {
         ScreenShell(
-            chapter: "03",
-            kicker: "Chapter 03 — The Engine",
+            kicker: "The Engine",
             title: { titleView },
-            lead: "Four engines, four trade-offs. Bigger Whisper means more accurate but heavier on disk and battery. Parakeet is the speed champion, English-first. You can swap anytime in Settings → Engine.",
+            lead: "Four voices, four trade-offs. Bigger means more accurate but heavier on disk and battery; the fastest is built for low latency, English-first. You can swap anytime in Settings → Engine.",
             body: { EmptyView() },
             leftFooter: { footer },
             rightCol: { rightStage }
@@ -32,7 +31,8 @@ struct ModelScreen: View {
             primary: state.modelPrimaryTitle,
             primaryDisabled: state.modelPrimaryDisabled,
             onContinue: { state.modelPrimaryAction() },
-            note: state.modelFooterNote
+            note: state.modelFooterNote,
+            onBack: { state.back() }
         )
     }
 

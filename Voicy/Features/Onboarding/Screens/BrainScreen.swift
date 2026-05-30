@@ -5,8 +5,7 @@ struct BrainScreen: View {
 
     var body: some View {
         ScreenShell(
-            chapter: "04",
-            kicker: "Chapter 04 — Optional",
+            kicker: "Optional",
             title: { titleView },
             lead: nil,
             body: { leftBody },
@@ -68,7 +67,8 @@ struct BrainScreen: View {
             onContinue: { state.brainPrimaryAction() },
             secondary: hasPick ? "Clear selection" : nil,
             onSkip: hasPick ? { state.clearBrainSelection() } : nil,
-            note: state.brainFooterNote
+            note: state.brainFooterNote,
+            onBack: { state.back() }
         )
     }
 

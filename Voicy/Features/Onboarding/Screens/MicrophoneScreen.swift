@@ -5,8 +5,7 @@ struct MicrophoneScreen: View {
 
     var body: some View {
         ScreenShell(
-            chapter: "01",
-            kicker: "Chapter 01 — Permission",
+            kicker: "Permission",
             title: { titleView },
             lead: "Voicy needs access to your microphone to listen for dictation. Audio never leaves your Mac — transcription happens entirely on this device.",
             body: { bullets },
@@ -32,7 +31,7 @@ struct MicrophoneScreen: View {
             OnboardingBulletRow(
                 glyph: "🔒",
                 label: "Stays on device",
-                desc: "Audio is processed locally with the Whisper engine. Nothing is uploaded, ever."
+                desc: "Audio is processed locally on your Mac. Nothing is uploaded, ever."
             )
             OnboardingBulletRow(
                 glyph: "◉",
@@ -47,7 +46,8 @@ struct MicrophoneScreen: View {
             primary: "Continue →",
             primaryDisabled: state.micPermission != .granted,
             onContinue: { state.next() },
-            note: noteText
+            note: noteText,
+            onBack: { state.back() }
         )
     }
 

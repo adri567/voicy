@@ -5,8 +5,7 @@ struct FnKeyScreen: View {
 
     var body: some View {
         ScreenShell(
-            chapter: "03",
-            kicker: "Chapter 03 — One last setting",
+            kicker: "One last setting",
             title: { titleView },
             lead: nil,
             body: { leftBody },
@@ -62,7 +61,8 @@ struct FnKeyScreen: View {
             primary: "Continue →",
             primaryDisabled: state.fnKeyState != .granted,
             onContinue: { state.next() },
-            note: state.fnKeyState == .granted ? "Fn key is free" : "Fn key must be freed up"
+            note: state.fnKeyState == .granted ? "Fn key is free" : "Fn key must be freed up",
+            onBack: { state.back() }
         )
     }
 

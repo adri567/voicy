@@ -24,8 +24,7 @@ struct PracticeScreen: View {
 
     var body: some View {
         ScreenShell(
-            chapter: "06",
-            kicker: "Chapter 06 — Trial run",
+            kicker: "Trial run",
             title: { titleView },
             lead: nil,
             body: { leftBody },
@@ -100,7 +99,8 @@ struct PracticeScreen: View {
                 state.persistFinalChoices()
                 onFinish()
             },
-            note: note
+            note: note,
+            onBack: { state.back() }
         )
     }
 

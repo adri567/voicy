@@ -14,12 +14,10 @@ struct ModelCardView: View {
                     radio
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            let family = Text(model.family + " ")
-                                .font(DS.Font.serif(24, weight: .medium))
-                            let label = Text(model.label)
+                            Text(model.name)
                                 .font(DS.Font.serifItalic(24, weight: .medium))
-                            Text("\(family)\(label)")
                                 .foregroundStyle(DS.Palette.ink)
+                            Text(model.tier).dsTag()
                             Text(model.displaySize)
                                 .font(DS.Font.mono(9))
                                 .tracking(1.2)

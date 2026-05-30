@@ -6,26 +6,23 @@ struct WelcomeScreen: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                HStack(spacing: 16) {
+                Group {
                     if let appIcon = NSImage(named: "AppIcon") {
                         Image(nsImage: appIcon)
                             .resizable()
-                            .frame(width: 44, height: 44)
+                            .scaledToFit()
                     } else {
-                        RoundedRectangle(cornerRadius: 10)
+                        RoundedRectangle(cornerRadius: 28)
                             .fill(DS.Palette.ink)
-                            .frame(width: 44, height: 44)
                             .overlay(
                                 Image(systemName: "waveform")
-                                    .font(.system(size: 22, weight: .medium))
+                                    .font(.system(size: 64, weight: .medium))
                                     .foregroundStyle(DS.Palette.accentInk)
                             )
                     }
-                    Text("Voicy")
-                        .font(.system(size: 56, weight: .semibold))
-                        .tracking(-1.96)
-                        .foregroundStyle(DS.Palette.ink)
                 }
+                .frame(width: 132, height: 132)
+                .accessibilityLabel("Voicy")
                 .padding(.bottom, 28)
 
                 let lead = Text("Your voice, ")
