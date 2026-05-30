@@ -4,10 +4,13 @@ enum TranscriptionEngine: String, CaseIterable {
     case whisper = "whisper"
     case parakeet = "parakeet"
 
+    /// Neutral, vendor-free label. A history entry only records the engine
+    /// family, not the specific model, so this can't resolve to a single Voicy
+    /// name — it stays generic on purpose.
     var displayName: String {
         switch self {
-        case .whisper:  "WhisperKit (Standard)"
-        case .parakeet: "Parakeet TDT v3"
+        case .whisper:  "On-device · multilingual"
+        case .parakeet: "On-device · fast"
         }
     }
 

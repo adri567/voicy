@@ -21,7 +21,7 @@ struct BrainView: View {
             registryKey: "gemma4_e4b_it_4bit",
             name: "Gemma 4 E4B",
             family: "Google · MLX",
-            description: "The bigger sibling of E2B. Doubles disk and memory, noticeably better at longer reasoning and tone control.",
+            description: "The bigger sibling of Quill. Doubles disk and memory, noticeably better at longer reasoning and tone control.",
             size: "~2.2 GB",
             context: "8k",
             speed: "Medium",
@@ -43,23 +43,10 @@ struct BrainView: View {
             highlight: "Best multilingual premium"
         ),
         LLMModel(
-            id: "llama3-1-8b",
-            registryKey: "llama3_1_8B_4bit",
-            name: "Llama 3.1 8B",
-            family: "Meta · open weights",
-            description: "Meta's polished 8B instruction model. Strong general-purpose performer, declared multilingual support.",
-            size: "~4.7 GB",
-            context: "128k",
-            speed: "Slow",
-            quality: 0.88,
-            location: .local,
-            highlight: nil
-        ),
-        LLMModel(
             id: "claude-haiku-45",
             registryKey: nil,
             name: "Claude Haiku 4.5",
-            family: "Anthropic · API",
+            family: "Anthropic",
             description: "Anthropic's small workhorse. Astonishing speed and quality for translation and rewriting. Coming soon — opt-in only.",
             size: "Cloud",
             context: "200k",
@@ -72,7 +59,7 @@ struct BrainView: View {
             id: "gpt-41-mini",
             registryKey: nil,
             name: "GPT-4.1 Mini",
-            family: "OpenAI · API",
+            family: "OpenAI",
             description: "Quick, capable, ubiquitous. Best when you want the most polished tone, especially for English prose.",
             size: "Cloud",
             context: "128k",
@@ -85,7 +72,7 @@ struct BrainView: View {
             id: "gemini-25-flash",
             registryKey: nil,
             name: "Gemini 2.5 Flash",
-            family: "Google · API",
+            family: "Google",
             description: "Strong multilingual translation at a low cost. Useful if your three target languages span very different families.",
             size: "Cloud",
             context: "1M",
@@ -132,7 +119,7 @@ struct BrainView: View {
                 if let key { viewModel.setAsDefault(registryKey: key) }
             }
         } message: { model in
-            Text("Voicy will switch to \(model.name) and restart. Any active recording will be lost.")
+            Text("Voicy will switch to \(model.displayName) and restart. Any active recording will be lost.")
         }
         .alert(
             "Delete model?",
@@ -150,9 +137,9 @@ struct BrainView: View {
             }
         } message: { model in
             if let key = model.registryKey, viewModel.statuses[key] == .active {
-                Text("\(model.name) is currently active. After deletion, translation won't work until you reinstall it.")
+                Text("\(model.displayName) is currently active. After deletion, translation won't work until you reinstall it.")
             } else {
-                Text("Delete \(model.name)? You can reinstall it anytime.")
+                Text("Delete \(model.displayName)? You can reinstall it anytime.")
             }
         }
     }
@@ -191,12 +178,12 @@ struct BrainView: View {
             MetaLabel(text: "Default model", color: DS.Palette.paper.opacity(0.6))
                 .padding(.bottom, 14)
 
-            Text("\(current.nameLeadingPart)\(Text(current.nameTrailingPart).italic())")
+            activeCardTitle(for: current)
                 .font(DS.Font.serif(32))
                 .foregroundStyle(DS.Palette.paper)
                 .padding(.bottom, 6)
 
-            Text("\(current.family) · \(current.size) · loaded into RAM")
+            Text("\(current.size) · loaded into RAM")
                 .font(DS.Font.mono(11))
                 .foregroundStyle(DS.Palette.paper.opacity(0.7))
                 .padding(.bottom, 22)
@@ -223,6 +210,12 @@ struct BrainView: View {
         .padding(28)
         .background(DS.Palette.ink, in: RoundedRectangle(cornerRadius: DS.Radius.card))
         .shadow(color: .black.opacity(0.3), radius: 30, x: 0, y: 12)
+    }
+
+    /// "Atlas · Pro" for local models, "Claude Haiku 4.5 · Anthropic · API" for cloud.
+    private func activeCardTitle(for model: LLMModel) -> Text {
+        let name = Text(model.displayName).italic()
+        return Text("\(name) · \(model.tier ?? model.family)")
     }
 
     private func statBlock(label: String, value: String, suffix: String) -> some View {

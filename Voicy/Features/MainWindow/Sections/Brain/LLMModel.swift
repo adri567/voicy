@@ -3,6 +3,7 @@ struct LLMModel: Identifiable {
 
     let id: String
     let registryKey: String?    // nil for cloud-only models
+    /// Real product name — used for cloud models that keep their own branding.
     let name: String
     let family: String
     let description: String
@@ -13,14 +14,14 @@ struct LLMModel: Identifiable {
     let location: Location
     let highlight: String?
 
-    var nameLeadingPart: String {
-        guard let space = name.firstIndex(of: " ") else { return name }
-        return String(name[..<space])
-    }
-    var nameTrailingPart: String {
-        guard let space = name.firstIndex(of: " ") else { return "" }
-        return String(name[space...])
-    }
+    /// Voicy branding for on-device models, resolved from the central catalog.
+    private var credit: ModelCredit? { registryKey.flatMap { ModelCatalog.brains[$0] } }
+
+    /// Name shown in the interface: Voicy name for local models, real name for cloud.
+    var displayName: String { credit?.voicyName ?? name }
+
+    /// Tier tag for local models; nil for cloud (which shows its family label).
+    var tier: String? { credit?.tier }
 
     var latencyNumber: String {
         switch speed {

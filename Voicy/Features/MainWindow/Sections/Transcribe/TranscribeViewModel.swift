@@ -104,27 +104,15 @@ final class TranscribeViewModel {
 
     // MARK: - Engine display
 
-    var engineDisplayName: String {
-        switch selectedEngine {
-        case .whisper:  "Whisper"
-        case .parakeet: "Parakeet"
-        }
-    }
+    /// Voicy name of the currently selected engine's active model.
+    var engineDisplayName: String { engineLabel(for: selectedEngine) }
 
-    var engineModelLabel: String {
-        switch selectedEngine {
-        case .whisper:  whisperModelLabel(from: DefaultTranscriptionService.activeModelID)
-        case .parakeet: "TDT v3"
+    /// Voicy name for a given engine backend, resolved from the active model.
+    func engineLabel(for engine: TranscriptionEngine) -> String {
+        switch engine {
+        case .whisper:  ModelCatalog.engineName(forLibraryID: DefaultTranscriptionService.activeModelID)
+        case .parakeet: ModelCatalog.engineName(forLibraryID: ParakeetTranscriptionService.activeVersion)
         }
-    }
-
-    private func whisperModelLabel(from modelID: String) -> String {
-        let bare = modelID
-            .replacing("openai_whisper-", with: "")
-            .replacing("distil-whisper_distil-", with: "")
-        return bare.split(separator: "-").map { piece -> String in
-            piece.prefix(1).uppercased() + piece.dropFirst()
-        }.joined(separator: " ")
     }
 
     // MARK: - Stats (from FileTranscriptionEntry)

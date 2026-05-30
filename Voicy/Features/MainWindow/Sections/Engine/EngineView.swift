@@ -7,9 +7,7 @@ struct EngineView: View {
             id: "whisper-tiny",
             libraryID: "openai_whisper-tiny",
             family: .whisper,
-            name: "Whisper Tiny",
-            familyName: "OpenAI · Whisper",
-            description: "The smallest Whisper — fits on a phone, runs in real-time on Apple Silicon. Good for short utterances and battery-conscious sessions.",
+            description: "The smallest model. Quick drafts, chat, casual notes. Stumbles on proper names and strong accents — but starts in a heartbeat.",
             size: "~75 MB",
             speed: "Real-time",
             accuracy: 0.74,
@@ -19,33 +17,17 @@ struct EngineView: View {
             id: "whisper-small",
             libraryID: "openai_whisper-small",
             family: .whisper,
-            name: "Whisper Small",
-            familyName: "OpenAI · Whisper",
-            description: "The recommended default. Editorial-grade transcription across 99 languages, balanced for speed and accuracy.",
+            description: "The sweet spot. Handles German + English mid-sentence switches, light jargon, ordinary rooms.",
             size: "~500 MB",
             speed: "Medium",
             accuracy: 0.91,
-            highlight: "Recommended"
-        ),
-        EngineModel(
-            id: "whisper-large-v3-compact",
-            libraryID: "openai_whisper-large-v3-v20240930_626MB",
-            family: .whisper,
-            name: "Whisper Large v3 Compact",
-            familyName: "OpenAI · Whisper",
-            description: "Premium accuracy in a 626 MB footprint. The 2024-09-30 large-v3 distillation tuned for Apple Silicon.",
-            size: "~626 MB",
-            speed: "Slow",
-            accuracy: 0.95,
-            highlight: nil
+            highlight: "Recommended for everyday dictation"
         ),
         EngineModel(
             id: "whisper-large-v3",
             libraryID: "openai_whisper-large-v3_947MB",
             family: .whisper,
-            name: "Whisper Large v3",
-            familyName: "OpenAI · Whisper",
-            description: "The highest-quality OpenAI Whisper available locally. For when you want the words exactly right and don't mind waiting half a second more.",
+            description: "The current state of the art. 99 languages, accented speech, noisy rooms, long-form editorial — at the price of a heavier footprint.",
             size: "~947 MB",
             speed: "Slow",
             accuracy: 0.97,
@@ -55,9 +37,7 @@ struct EngineView: View {
             id: "parakeet-v3",
             libraryID: "v3",
             family: .parakeet,
-            name: "Parakeet v3",
-            familyName: "NVIDIA · FluidAudio",
-            description: "Streaming-fast on the Apple Neural Engine. 25 European languages — particularly strong for German, English, French.",
+            description: "Lightning-fast streaming on the Apple Neural Engine. 25 European languages plus Japanese — particularly strong for German and French. Use it when latency matters most.",
             size: "~550 MB",
             speed: "Real-time",
             accuracy: 0.93,
@@ -168,14 +148,14 @@ struct EngineView: View {
             MetaLabel(text: "Now serving", color: DS.Palette.paper.opacity(0.6))
                 .padding(.bottom, 14)
 
-            Text("\(current.nameLeadingPart)\(Text(current.nameTrailingPart).italic())")
+            Text("\(Text(current.name).italic()) · \(current.tier)")
                 .font(DS.Font.serif(36))
                 .foregroundStyle(DS.Palette.paper)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .padding(.bottom, 6)
 
-            Text("\(current.familyName) · \(current.size) · loaded into RAM")
+            Text("\(current.size) · loaded into RAM")
                 .font(DS.Font.mono(11))
                 .foregroundStyle(DS.Palette.paper.opacity(0.7))
                 .padding(.bottom, 22)

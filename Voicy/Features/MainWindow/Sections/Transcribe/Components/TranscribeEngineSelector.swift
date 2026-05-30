@@ -3,6 +3,7 @@ import SwiftUI
 struct TranscribeEngineSelector: View {
     let selected: TranscriptionEngine
     let available: [TranscriptionEngine]
+    let label: (TranscriptionEngine) -> String
     let onSelect: (TranscriptionEngine) -> Void
 
     @State private var showOptions = false
@@ -20,7 +21,7 @@ struct TranscribeEngineSelector: View {
             showOptions = true
         } label: {
             HStack(alignment: .center, spacing: 10) {
-                Text(menuLabel(for: selected))
+                Text(label(selected))
                     .font(DS.Font.serif(28))
                     .tracking(-0.3)
                     .foregroundStyle(DS.Palette.ink)
@@ -62,7 +63,7 @@ struct TranscribeEngineSelector: View {
             showOptions = false
         } label: {
             HStack(spacing: 10) {
-                Text(menuLabel(for: engine))
+                Text(label(engine))
                     .font(DS.Font.sans(13, weight: engine == selected ? .semibold : .regular))
                     .foregroundStyle(DS.Palette.ink)
                 Spacer(minLength: 8)
@@ -93,12 +94,5 @@ struct TranscribeEngineSelector: View {
                 RoundedRectangle(cornerRadius: DS.Radius.small)
                     .stroke(DS.Palette.ruleSoft, lineWidth: 1)
             )
-    }
-
-    private func menuLabel(for engine: TranscriptionEngine) -> String {
-        switch engine {
-        case .whisper:  "Whisper"
-        case .parakeet: "Parakeet"
-        }
     }
 }

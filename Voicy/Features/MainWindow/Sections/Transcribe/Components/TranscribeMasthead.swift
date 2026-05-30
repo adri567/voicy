@@ -4,6 +4,7 @@ struct TranscribeMasthead: View {
     let selectedEngine: TranscriptionEngine
     let availableEngines: [TranscriptionEngine]
     let onSelectEngine: (TranscriptionEngine) -> Void
+    let engineLabel: (TranscriptionEngine) -> String
     let engineSubtitle: String
     let weeklyHoursLabel: String
     let weeklySessionsLabel: String
@@ -17,6 +18,7 @@ struct TranscribeMasthead: View {
                 selectedEngine: selectedEngine,
                 availableEngines: availableEngines,
                 onSelectEngine: onSelectEngine,
+                engineLabel: engineLabel,
                 engineSubtitle: engineSubtitle,
                 weeklyHoursLabel: weeklyHoursLabel,
                 weeklySessionsLabel: weeklySessionsLabel

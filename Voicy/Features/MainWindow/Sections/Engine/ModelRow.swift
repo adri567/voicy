@@ -28,7 +28,7 @@ struct ModelRow: View {
                             .font(DS.Font.serif(26))
                             .tracking(-0.3)
                             .foregroundStyle(DS.Palette.ink)
-                        MetaLabel(text: model.familyName)
+                        Text(model.tier).dsTag()
                     }
                     Text(model.description)
                         .font(DS.Font.sans(14))

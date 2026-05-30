@@ -4,6 +4,7 @@ struct TranscribeEngineStatCard: View {
     let selectedEngine: TranscriptionEngine
     let availableEngines: [TranscriptionEngine]
     let onSelectEngine: (TranscriptionEngine) -> Void
+    let engineLabel: (TranscriptionEngine) -> String
     let engineSubtitle: String
     let weeklyHoursLabel: String
     let weeklySessionsLabel: String
@@ -17,6 +18,7 @@ struct TranscribeEngineStatCard: View {
             TranscribeEngineSelector(
                 selected: selectedEngine,
                 available: availableEngines,
+                label: engineLabel,
                 onSelect: onSelectEngine
             )
             .padding(.bottom, 10)

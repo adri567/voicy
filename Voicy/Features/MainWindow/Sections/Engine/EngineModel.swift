@@ -4,28 +4,22 @@ struct EngineModel: Identifiable {
     let id: String
     let libraryID: String      // e.g. "openai_whisper-small" or "v3"
     let family: Family
-    let name: String
-    let familyName: String     // e.g. "OpenAI · Whisper"
     let description: String
     let size: String
     let speed: String
     let accuracy: Double
     let highlight: String?
 
+    /// Voicy branding for this model, resolved from the central catalog.
+    private var credit: ModelCredit? { ModelCatalog.engines[libraryID] }
+    var name: String { credit?.voicyName ?? "Engine" }
+    var tier: String { credit?.tier ?? "" }
+
     var asVMFamily: EngineViewModel.Family {
         switch family {
         case .whisper:  return .whisper
         case .parakeet: return .parakeet
         }
-    }
-
-    var nameLeadingPart: String {
-        guard let space = name.firstIndex(of: " ") else { return name }
-        return String(name[..<space])
-    }
-    var nameTrailingPart: String {
-        guard let space = name.firstIndex(of: " ") else { return "" }
-        return String(name[space...])
     }
 
     var speedNumber: String {

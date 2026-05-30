@@ -40,6 +40,7 @@ struct TranscribeView: View {
                 selectedEngine: viewModel.selectedEngine,
                 availableEngines: viewModel.availableEngines,
                 onSelectEngine: { viewModel.selectEngine($0) },
+                engineLabel: { viewModel.engineLabel(for: $0) },
                 engineSubtitle: engineSubtitle,
                 weeklyHoursLabel: viewModel.weeklyHoursLabel(from: fileEntries),
                 weeklySessionsLabel: viewModel.weeklySessionsLabel(from: fileEntries)
@@ -56,9 +57,9 @@ struct TranscribeView: View {
     private var engineSubtitle: String {
         switch viewModel.selectedEngine {
         case .whisper:
-            "Whisper \(viewModel.engineModelLabel) · 99 languages · runs on-device · auto-detect available."
+            "\(viewModel.engineDisplayName) · 99 languages · runs on-device · auto-detect available."
         case .parakeet:
-            "Parakeet TDT v3 · 18 languages · runs on-device · manual language pick required."
+            "\(viewModel.engineDisplayName) · 25 European languages + Japanese · runs on-device · manual language pick required."
         }
     }
 

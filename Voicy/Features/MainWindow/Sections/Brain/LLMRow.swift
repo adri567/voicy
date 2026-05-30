@@ -23,13 +23,20 @@ struct LLMRow: View {
                     .frame(width: 60, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text(model.name)
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(model.displayName)
                             .font(DS.Font.serif(26))
                             .tracking(-0.3)
                             .foregroundStyle(DS.Palette.ink)
-                        MetaLabel(text: model.family)
+                            .lineLimit(1)
+                        if let tier = model.tier {
+                            Text(tier).dsTag()
+                        } else {
+                            MetaLabel(text: model.family)
+                                .fixedSize()
+                        }
                         LocationChip(location: model.location)
+                            .fixedSize()
                     }
                     Text(model.description)
                         .font(DS.Font.sans(14))
@@ -53,10 +60,10 @@ struct LLMRow: View {
                     specRow(label: "speed",   value: model.speed)
                     specRow(label: "quality", value: nil, quality: model.quality)
                 }
-                .frame(width: 200)
+                .frame(width: 180)
 
                 actionBlock
-                    .frame(width: 160, alignment: .trailing)
+                    .frame(width: 140, alignment: .trailing)
             }
             .padding(.vertical, 22)
             .contentShape(Rectangle())
@@ -122,12 +129,7 @@ struct LLMRow: View {
         .foregroundStyle(DS.Palette.ink3)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .overlay(
-            Capsule().strokeBorder(
-                DS.Palette.ruleSoft,
-                style: StrokeStyle(lineWidth: 1, dash: [3, 3])
-            )
-        )
+        .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
     }
 
     private var badge: some View {

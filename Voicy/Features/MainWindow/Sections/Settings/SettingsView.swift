@@ -169,6 +169,8 @@ struct SettingsView: View {
                 OnboardingResetRow()
             }
 
+            ColophonSection()
+
             HStack {
                 MetaLabel(text: "Settings save instantly.")
                 Spacer()
