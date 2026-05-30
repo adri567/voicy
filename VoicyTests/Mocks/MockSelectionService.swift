@@ -13,6 +13,14 @@ final class MockSelectionService: SelectionService {
     private(set) var startCount = 0
     private(set) var stopCount = 0
 
+    /// What `currentSelection()` returns (the live read at tap time).
+    var stubbedSelection: SelectionState = .none
+    /// Whether `setSelectedText(_:)` reports success (false → caller should fall
+    /// back to paste).
+    var setSelectedTextSucceeds = true
+    /// Captures the text passed to `setSelectedText(_:)`.
+    private(set) var writtenText: String?
+
     nonisolated init() {
         let (stream, continuation) = AsyncStream<SelectionState>.makeStream(
             bufferingPolicy: .bufferingNewest(1)
@@ -23,6 +31,12 @@ final class MockSelectionService: SelectionService {
 
     func start() { startCount += 1 }
     func stop() { stopCount += 1 }
+    func currentSelection() -> SelectionState { stubbedSelection }
+
+    func setSelectedText(_ text: String) -> Bool {
+        writtenText = text
+        return setSelectedTextSucceeds
+    }
 
     /// Test hook: deliver a selection state to subscribers.
     func send(_ state: SelectionState) { continuation.yield(state) }

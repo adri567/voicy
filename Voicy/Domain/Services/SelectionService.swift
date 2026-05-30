@@ -13,6 +13,17 @@ protocol SelectionService: Sendable {
 
     /// Stops polling and emits an empty selection so subscribers hide any UI.
     func stop()
+
+    /// Reads the frontmost app's current selection on demand (a fresh AX read,
+    /// not the last polled value). Used at click time so the correction runs on
+    /// exactly what's selected right now.
+    func currentSelection() -> SelectionState
+
+    /// Replaces the frontmost app's current selection with `text` via the
+    /// Accessibility API. Returns `false` if the focused element doesn't accept
+    /// a settable selected-text value (e.g. many Electron/web views), so callers
+    /// can fall back to a paste.
+    func setSelectedText(_ text: String) -> Bool
 }
 
 /// Snapshot of the current text selection in the frontmost app. `selectedText`

@@ -15,6 +15,8 @@ actor RecordingTextCorrectionSpy: TextCorrectionService {
         await record(mode: mode, source: sourceLanguage)
         return text + " [\(mode.type.rawValue)]"
     }
+    nonisolated func proofread(_ text: String) async throws -> String { text }
+    nonisolated func rephrase(_ text: String) async throws -> String { text }
     nonisolated func isModelInstalled() -> Bool { true }
     nonisolated func ensureModelAvailable() -> Bool { true }
     nonisolated func installModel(progress: @escaping @Sendable (DownloadPhase) -> Void) async throws { progress(.downloading(1.0)) }

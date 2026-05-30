@@ -9,6 +9,17 @@ protocol TextCorrectionService: Sendable {
         sourceLanguage: AppLanguage
     ) async throws -> String
 
+    /// Proofread and lightly polish arbitrary text: fix spelling, grammar and
+    /// punctuation and smooth awkward phrasing while preserving meaning, tone
+    /// and the input's own language (auto-detected). Used by the selection-action
+    /// pill, independent of the recording Modes.
+    nonisolated func proofread(_ text: String) async throws -> String
+
+    /// Neutrally rephrase arbitrary text: reword and restructure while keeping
+    /// the meaning, tone and the input's own language (auto-detected). Used by
+    /// the selection-action pill.
+    nonisolated func rephrase(_ text: String) async throws -> String
+
     // MARK: - Download management
 
     nonisolated func isModelInstalled() -> Bool

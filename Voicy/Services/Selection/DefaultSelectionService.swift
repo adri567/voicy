@@ -56,6 +56,18 @@ final class DefaultSelectionService: SelectionService {
         emit(.none)
     }
 
+    func currentSelection() -> SelectionState {
+        Self.readSelection()
+    }
+
+    func setSelectedText(_ text: String) -> Bool {
+        guard let element = Self.focusedElement() else { return false }
+        let status = AXUIElementSetAttributeValue(
+            element, kAXSelectedTextAttribute as CFString, text as CFTypeRef
+        )
+        return status == .success
+    }
+
     private func tick() {
         emit(Self.readSelection())
     }
@@ -66,23 +78,28 @@ final class DefaultSelectionService: SelectionService {
         continuation.yield(state)
     }
 
-    // MARK: - Accessibility read
+    // MARK: - Accessibility
 
-    private static func readSelection() -> SelectionState {
+    /// The focused UI element of the frontmost non-Voicy app, with a bounded
+    /// messaging timeout so an unresponsive target can't stall the caller.
+    private static func focusedElement() -> AXUIElement? {
         guard let app = NSWorkspace.shared.frontmostApplication,
               app.bundleIdentifier != Bundle.main.bundleIdentifier else {
-            return .none
+            return nil
         }
-
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(axApp, axTimeout)
 
         var focused: CFTypeRef?
         guard AXUIElementCopyAttributeValue(axApp, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
               let focused else {
-            return .none
+            return nil
         }
-        let element = unsafeDowncast(focused, to: AXUIElement.self)
+        return unsafeDowncast(focused, to: AXUIElement.self)
+    }
+
+    private static func readSelection() -> SelectionState {
+        guard let element = focusedElement() else { return .none }
 
         var selected: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selected) == .success,

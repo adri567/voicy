@@ -74,7 +74,11 @@ final class AppCoordinator {
     }
 
     private func updateSelectionWindow() {
-        guard selectionViewModel.hasSelection, viewModel.state == .idle else {
+        // Keep the pill up while it's mid-correction (working/failed) even if the
+        // selection momentarily clears from the write-back, so it doesn't vanish
+        // under the user's cursor.
+        let active = selectionViewModel.hasSelection || selectionViewModel.phase != .idle
+        guard active, viewModel.state == .idle else {
             selectionController?.hide()
             return
         }
