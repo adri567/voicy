@@ -121,4 +121,11 @@ extension Container {
         }
         .singleton
     }
+
+    var selectionService: Factory<any SelectionService> {
+        Factory(self) {
+            MainActor.assumeIsolated { DefaultSelectionService() }
+        }
+        .singleton
+    }
 }

@@ -1,0 +1,29 @@
+@testable import Voicy
+import Foundation
+
+/// Controllable `SelectionService` for tests: `send(_:)` pushes a state to
+/// subscribers, and start/stop calls are counted. `@MainActor` to be `Sendable`
+/// despite the call counters.
+@MainActor
+final class MockSelectionService: SelectionService {
+
+    nonisolated let selectionChanges: AsyncStream<SelectionState>
+    private nonisolated let continuation: AsyncStream<SelectionState>.Continuation
+
+    private(set) var startCount = 0
+    private(set) var stopCount = 0
+
+    nonisolated init() {
+        let (stream, continuation) = AsyncStream<SelectionState>.makeStream(
+            bufferingPolicy: .bufferingNewest(1)
+        )
+        self.selectionChanges = stream
+        self.continuation = continuation
+    }
+
+    func start() { startCount += 1 }
+    func stop() { stopCount += 1 }
+
+    /// Test hook: deliver a selection state to subscribers.
+    func send(_ state: SelectionState) { continuation.yield(state) }
+}

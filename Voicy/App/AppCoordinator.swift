@@ -8,9 +8,11 @@ final class AppCoordinator {
 
     let viewModel = RecordingViewModel()
     let modeCycleService = Container.shared.modeCycleService()
+    let selectionViewModel = SelectionViewModel()
 
     private var overlayController: RecordingOverlayWindowController?
     private var transcriptController: TranscriptPopupWindowController?
+    private var selectionController: SelectionActionWindowController?
     private let pasteService: any PasteService = Container.shared.pasteService()
     private let targetAppService: any TargetAppService = Container.shared.targetAppService()
     private let hotkey = HotkeyEventTap()
@@ -54,8 +56,30 @@ final class AppCoordinator {
         guard overlayController == nil else { return }
         overlayController = RecordingOverlayWindowController(viewModel: viewModel, cycle: modeCycleService)
         transcriptController = TranscriptPopupWindowController(viewModel: viewModel)
+        selectionController = SelectionActionWindowController(viewModel: selectionViewModel)
         overlayController?.show()
         registerHotkey()
+        startSelectionTracking()
+    }
+
+    /// Wires the selection pill: the view model consumes the selection stream
+    /// and calls back here so we can show/hide the floating panel. Visibility is
+    /// gated on the recording overlay being idle so the pill never fights the
+    /// active recording UI.
+    private func startSelectionTracking() {
+        selectionViewModel.onSelectionChange = { [weak self] in
+            self?.updateSelectionWindow()
+        }
+        selectionViewModel.start()
+    }
+
+    private func updateSelectionWindow() {
+        guard selectionViewModel.hasSelection, viewModel.state == .idle else {
+            selectionController?.hide()
+            return
+        }
+        let barFrame = overlayController?.window?.frame ?? .zero
+        selectionController?.show(above: barFrame)
     }
 
     private func registerHotkey() {
@@ -172,6 +196,7 @@ final class AppCoordinator {
 
     private func startRecordingSession() async {
         transcriptController?.hide()
+        selectionController?.hide()
         viewModel.clearTranscript()
         viewModel.captureTargetApp(targetAppService.captureCurrent())
         modeCycleService.resetCycle()
@@ -189,6 +214,7 @@ final class AppCoordinator {
         // moments later and leave it stranded with no way to dismiss.
         if viewModel.state == .loadingModel {
             viewModel.cancelStartIfPending()
+            updateSelectionWindow()
             return
         }
 
@@ -201,5 +227,7 @@ final class AppCoordinator {
                 transcriptController?.show(above: barFrame)
             }
         }
+        // Back to idle: re-show the selection pill if a selection is still live.
+        updateSelectionWindow()
     }
 }
