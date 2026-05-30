@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5AAAAAA10000000000000003 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5AAAAAA10000000000000002 /* Sparkle */; };
 		603B6B162FB285E00062E37D /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 603B6B152FB285E00062E37D /* MLXLLM */; };
 		603B6B182FB285E00062E37D /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 603B6B172FB285E00062E37D /* MLXLMCommon */; };
 		603B6B1B2FB314400062E37D /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = 603B6B1A2FB314400062E37D /* HuggingFace */; };
@@ -40,9 +41,22 @@
 		60950A982FAE710E00AC92A9 /* VoicyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VoicyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5AAAAAA10000000000000004 /* Exceptions for "Voicy" folder in "Voicy" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 60950A802FAE710C00AC92A9 /* Voicy */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		60950A832FAE710C00AC92A9 /* Voicy */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5AAAAAA10000000000000004 /* Exceptions for "Voicy" folder in "Voicy" target */,
+			);
 			path = Voicy;
 			sourceTree = "<group>";
 		};
@@ -71,6 +85,7 @@
 				603B6B182FB285E00062E37D /* MLXLMCommon in Frameworks */,
 				603B6B2D2FB32A560062E37D /* FluidAudio in Frameworks */,
 				60950AE92FAE78A300AC92A9 /* FactoryKit in Frameworks */,
+				5AAAAAA10000000000000003 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -147,6 +162,7 @@
 				603B6B1D2FB3146B0062E37D /* Tokenizers */,
 				603B6B202FB3148E0062E37D /* MLXHuggingFace */,
 				603B6B2C2FB32A560062E37D /* FluidAudio */,
+				5AAAAAA10000000000000002 /* Sparkle */,
 			);
 			productName = Voicy;
 			productReference = 60950A812FAE710C00AC92A9 /* Voicy.app */;
@@ -237,6 +253,7 @@
 				603B6B192FB314400062E37D /* XCRemoteSwiftPackageReference "swift-huggingface" */,
 				603B6B1C2FB3146B0062E37D /* XCRemoteSwiftPackageReference "swift-transformers" */,
 				603B6B2B2FB32A560062E37D /* XCRemoteSwiftPackageReference "FluidAudio" */,
+				5AAAAAA10000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 60950A822FAE710C00AC92A9 /* Products */;
@@ -445,15 +462,14 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Voicy benötigt Mikrofon-Zugriff für Voice-to-Text.";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Voicy/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = de.voicy.as.Voicy;
+				PRODUCT_BUNDLE_IDENTIFIER = pro.voicy.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -478,15 +494,14 @@
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Voicy benötigt Mikrofon-Zugriff für Voice-to-Text.";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Voicy/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = de.voicy.as.Voicy;
+				PRODUCT_BUNDLE_IDENTIFIER = pro.voicy.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -508,7 +523,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = de.voicy.as.VoicyTests;
+				PRODUCT_BUNDLE_IDENTIFIER = pro.voicy.app.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -529,7 +544,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = de.voicy.as.VoicyTests;
+				PRODUCT_BUNDLE_IDENTIFIER = pro.voicy.app.Tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -548,7 +563,7 @@
 				DEVELOPMENT_TEAM = D6GUJ478PV;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = de.voicy.as.VoicyUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = pro.voicy.app.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -567,7 +582,7 @@
 				DEVELOPMENT_TEAM = D6GUJ478PV;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = de.voicy.as.VoicyUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = pro.voicy.app.UITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -620,6 +635,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		5AAAAAA10000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 		603B6B142FB285E00062E37D /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
@@ -671,6 +694,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		5AAAAAA10000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5AAAAAA10000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
 		603B6B152FB285E00062E37D /* MLXLLM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 603B6B142FB285E00062E37D /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;

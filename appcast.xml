@@ -1,0 +1,15 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Voicy</title>
+        <link>https://voicy.pro/appcast.xml</link>
+        <description>Updates for Voicy.</description>
+        <language>en</language>
+        <!--
+            Placeholder appcast. `scripts/release.sh` regenerates this file via
+            Sparkle's generate_appcast (EdDSA-signed) and overwrites everything
+            below with a real <item> per release. Deploy the result to
+            https://voicy.pro/appcast.xml. Do not hand-edit signatures.
+        -->
+    </channel>
+</rss>

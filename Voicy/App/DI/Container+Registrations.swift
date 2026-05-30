@@ -114,4 +114,11 @@ extension Container {
         }
         .singleton
     }
+
+    var updateService: Factory<any UpdateService> {
+        Factory(self) {
+            MainActor.assumeIsolated { SparkleUpdateService() }
+        }
+        .singleton
+    }
 }

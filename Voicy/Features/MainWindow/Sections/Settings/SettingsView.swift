@@ -12,8 +12,13 @@ struct SettingsView: View {
     @State private var showingClearMicConfirmation = false
     @State private var showingClearFileConfirmation = false
 
+    @Environment(\.openURL) private var openURL
+
     @Injected(\.transcriptionHistoryService) private var micHistoryService
     @Injected(\.fileTranscriptionHistoryService) private var fileHistoryService
+    @Injected(\.updateService) private var updateService
+
+    private let releaseNotesURL = URL(string: "https://github.com/adri567/voicy/releases")!
 
     var body: some View {
         ScrollView {
@@ -108,8 +113,8 @@ struct SettingsView: View {
                 .padding(.bottom, 18)
 
             HStack(spacing: 8) {
-                aboutButton("Check for updates", filled: true)   // TODO(updates)
-                aboutButton("Release notes", filled: false)      // TODO(release-notes)
+                aboutButton("Check for updates", filled: true) { updateService.checkForUpdates() }
+                aboutButton("Release notes", filled: false) { openURL(releaseNotesURL) }
             }
         }
         .padding(26)
@@ -117,8 +122,8 @@ struct SettingsView: View {
         .shadow(color: .black.opacity(0.3), radius: 30, y: 12)
     }
 
-    private func aboutButton(_ label: String, filled: Bool) -> some View {
-        Button(label) {}
+    private func aboutButton(_ label: String, filled: Bool, action: @escaping () -> Void) -> some View {
+        Button(label, action: action)
             .buttonStyle(.plain)
             .font(DS.Font.sans(11, weight: .medium))
             .foregroundStyle(filled ? DS.Palette.paper : DS.Palette.paper.opacity(0.7))
