@@ -37,5 +37,6 @@ struct LanguageGrid: View {
         }
         .padding(8)
         .frame(width: 380)
+        .background(DS.Palette.paper)
     }
 }

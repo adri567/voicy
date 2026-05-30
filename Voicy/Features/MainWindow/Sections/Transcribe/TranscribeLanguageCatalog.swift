@@ -13,8 +13,9 @@ nonisolated enum TranscribeLanguageCatalog {
         .init(code: "pt", flag: "🇵🇹", name: "Portuguese", native: "Português"),
         .init(code: "nl", flag: "🇳🇱", name: "Dutch",      native: "Nederlands"),
         .init(code: "pl", flag: "🇵🇱", name: "Polish",     native: "Polski"),
+        .init(code: "ru", flag: "🇷🇺", name: "Russian",    native: "Русский"),
         .init(code: "sv", flag: "🇸🇪", name: "Swedish",    native: "Svenska"),
-        .init(code: "tr", flag: "🇹🇷", name: "Turkish",    native: "Türkçe"),
+        .init(code: "da", flag: "🇩🇰", name: "Danish",     native: "Dansk"),
         .init(code: "ja", flag: "🇯🇵", name: "Japanese",   native: "日本語"),
     ]
 

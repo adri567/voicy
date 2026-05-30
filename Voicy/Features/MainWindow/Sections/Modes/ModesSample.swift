@@ -27,7 +27,9 @@ enum ModesSample {
         case "pt": return "Podemos adiar a reunião para a próxima semana? Surgiu algo do meu lado hoje."
         case "pl": return "Czy moglibyśmy przełożyć spotkanie na przyszły tydzień? Coś mi dziś wypadło."
         case "sv": return "Kan vi flytta mötet till nästa vecka? Det dök upp något hos mig idag."
-        case "tr": return "Toplantıyı önümüzdeki haftaya alabilir miyiz? Bugün acil bir işim çıktı."
+        case "ru": return "Можем перенести встречу на следующую неделю? У меня сегодня кое-что появилось."
+        case "da": return "Kan vi rykke mødet til næste uge? Der dukkede noget op for mig i dag."
+        case "ja": return "来週に打ち合わせをずらせますか？今日はこちらで急な用事ができてしまって。"
         case "de": return ModesSample.input
         default: return "[Sample translation to \(target.uppercased()) appears here when this mode runs.]"
         }

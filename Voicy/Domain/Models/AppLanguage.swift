@@ -9,7 +9,9 @@ nonisolated struct AppLanguage: Identifiable, Hashable, Sendable {
 }
 
 nonisolated enum LanguageCatalog {
-    // 13 languages — mirrors design bundle voicy/project/components/LanguagesView.jsx
+    // 12 languages — every entry is supported by all engines (Whisper, Parakeet)
+    // and the local brains. Parakeet (25 European + Japanese) is the binding
+    // constraint, so Norwegian/Turkish were dropped.
     static let all: [AppLanguage] = [
         .init(code: "de", flag: "🇩🇪", name: "German",     native: "Deutsch"),
         .init(code: "en", flag: "🇺🇸", name: "English",    native: "English"),
@@ -22,8 +24,7 @@ nonisolated enum LanguageCatalog {
         .init(code: "ru", flag: "🇷🇺", name: "Russian",    native: "Русский"),
         .init(code: "sv", flag: "🇸🇪", name: "Swedish",    native: "Svenska"),
         .init(code: "da", flag: "🇩🇰", name: "Danish",     native: "Dansk"),
-        .init(code: "no", flag: "🇳🇴", name: "Norwegian",  native: "Norsk"),
-        .init(code: "tr", flag: "🇹🇷", name: "Turkish",    native: "Türkçe"),
+        .init(code: "ja", flag: "🇯🇵", name: "Japanese",   native: "日本語"),
     ]
 
     static let samplePreviews: [String: String] = [
@@ -38,8 +39,7 @@ nonisolated enum LanguageCatalog {
         "ru": "Можем перенести встречу на следующую неделю? У меня сегодня кое-что появилось.",
         "sv": "Kan vi flytta mötet till nästa vecka? Det dök upp något hos mig idag.",
         "da": "Kan vi rykke mødet til næste uge? Der dukkede noget op for mig i dag.",
-        "no": "Kan vi flytte møtet til neste uke? Det dukket opp noe hos meg i dag.",
-        "tr": "Toplantıyı önümüzdeki haftaya alabilir miyiz? Bugün acil bir işim çıktı.",
+        "ja": "来週に打ち合わせをずらせますか？今日はこちらで急な用事ができてしまって。",
     ]
 
     /// Short question samples used as a second few-shot example in the
@@ -57,8 +57,7 @@ nonisolated enum LanguageCatalog {
         "ru": "Как у тебя дела сегодня?",
         "sv": "Hur mår du idag?",
         "da": "Hvordan har du det i dag?",
-        "no": "Hvordan har du det i dag?",
-        "tr": "Bugün nasılsın?",
+        "ja": "今日は調子はどうですか？",
     ]
 
     static func language(for code: String) -> AppLanguage {
