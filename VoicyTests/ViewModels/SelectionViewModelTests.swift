@@ -64,6 +64,34 @@ struct SelectionViewModelTests {
         viewModel.stop()
     }
 
+    @Test("Dismissing hides the pill until the selection changes")
+    func dismissHidesUntilSelectionChanges() async {
+        let mock = MockSelectionService()
+        let viewModel = SelectionViewModel(selectionService: mock)
+        await onNextChange(of: viewModel) {
+            viewModel.start()
+            mock.send(SelectionState(hasSelection: true, selectedText: "hello"))
+        }
+        #expect(viewModel.hasSelection)
+
+        // User pressed Fn to dictate instead of acting on the selection.
+        viewModel.dismissCurrentSelection()
+        #expect(viewModel.hasSelection == false)
+
+        // The same selection keeps arriving from polling — stays hidden.
+        await onNextChange(of: viewModel) {
+            mock.send(SelectionState(hasSelection: true, selectedText: "hello"))
+        }
+        #expect(viewModel.hasSelection == false)
+
+        // A different selection brings the pill back.
+        await onNextChange(of: viewModel) {
+            mock.send(SelectionState(hasSelection: true, selectedText: "world"))
+        }
+        #expect(viewModel.hasSelection)
+        viewModel.stop()
+    }
+
     // MARK: - Action flow (proofread + rephrase share the path)
 
     @Test("run with no live selection does nothing", arguments: SelectionAction.allCases)

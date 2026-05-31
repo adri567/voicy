@@ -207,6 +207,9 @@ final class AppCoordinator {
     private func startRecordingSession() async {
         transcriptController?.hide()
         selectionController?.hide()
+        // Pressing Fn means "dictate, don't act on the selection" — keep the
+        // pill dismissed after recording until a new selection appears.
+        selectionViewModel.dismissCurrentSelection()
         viewModel.clearTranscript()
         viewModel.captureTargetApp(targetAppService.captureCurrent())
         modeCycleService.resetCycle()

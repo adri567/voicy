@@ -45,6 +45,11 @@ final class SelectionViewModel {
     @ObservationIgnored
     private var failedResetTask: Task<Void, Never>?
 
+    /// Selection the user dismissed by starting a recording instead of choosing
+    /// an action. Stays hidden until the selection actually changes.
+    @ObservationIgnored
+    private var dismissedSelection: String?
+
     /// How long the failed-hint stays up before returning to idle.
     private static let failedHintDuration: Duration = .seconds(1.5)
 
@@ -83,6 +88,16 @@ final class SelectionViewModel {
         failedResetTask?.cancel()
         failedResetTask = nil
         selectionService.stop()
+    }
+
+    /// Hides the pill for the currently selected text because the user chose to
+    /// dictate (pressed Fn) rather than run an action on it. Stays hidden until
+    /// a different selection appears.
+    func dismissCurrentSelection() {
+        guard hasSelection else { return }
+        dismissedSelection = selectedText
+        hasSelection = false
+        onSelectionChange?()
     }
 
     /// Runs `action` on the live selection with the installed brain and writes
@@ -176,8 +191,14 @@ final class SelectionViewModel {
     }
 
     private func apply(_ state: SelectionState) {
-        hasSelection = state.hasSelection
         selectedText = state.selectedText
+        if state.hasSelection, state.selectedText == dismissedSelection {
+            // Same selection the user dictated over — keep it hidden.
+            hasSelection = false
+        } else {
+            dismissedSelection = nil
+            hasSelection = state.hasSelection
+        }
         onSelectionChange?()
     }
 
