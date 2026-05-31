@@ -32,10 +32,6 @@ final class HomeViewModel {
         case .week:
             guard let weekStart = cal.date(byAdding: .day, value: -7, to: now) else { return entries }
             return entries.filter { $0.createdAt >= weekStart }
-        case .whisper:
-            return entries.filter { $0.engine == .whisper }
-        case .parakeet:
-            return entries.filter { $0.engine == .parakeet }
         }
     }
 

@@ -47,14 +47,6 @@ struct HomeViewModelTests {
         #expect(vm.filtered([entry(daysAgo: 3), entry(daysAgo: 10)]).count == 1)
     }
 
-    @Test("filter by engine keeps only that engine")
-    func filterEngine() {
-        let vm = HomeViewModel()
-        vm.filter = .parakeet
-        let entries = [entry(engine: .whisper), entry(engine: .parakeet), entry(engine: .parakeet)]
-        #expect(vm.filtered(entries).count == 2)
-    }
-
     @Test("todayWords sums word counts of today's entries only")
     func todayWords() {
         let vm = HomeViewModel()
