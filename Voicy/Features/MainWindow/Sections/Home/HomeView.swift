@@ -9,6 +9,7 @@ struct HomeView: View {
 
     @Query private var entries: [TranscriptionEntry]
     @State private var viewModel = HomeViewModel()
+    @State private var paywall: UpgradeContext?
 
     init(viewModel: RecordingViewModel, onNavigate: @escaping (SidebarSection) -> Void) {
         self.recordingViewModel = viewModel
@@ -31,11 +32,18 @@ struct HomeView: View {
                     .padding(.top, DS.Spacing.pageTop)
                     .padding(.bottom, 36)
 
+                if let quota = viewModel.wordQuota {
+                    WordQuotaCard(quota: quota) { paywall = .wordLimit }
+                        .padding(.horizontal, DS.Spacing.pageHPadding)
+                        .padding(.bottom, 36)
+                }
+
                 historySection
                     .padding(.horizontal, DS.Spacing.pageHPadding)
                     .padding(.bottom, 56)
             }
         }
+        .paywall($paywall)
     }
 
     // MARK: - Masthead

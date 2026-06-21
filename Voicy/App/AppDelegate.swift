@@ -12,6 +12,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Start crash reporting first so early-launch failures are captured.
+        // No-op unless a real Sentry DSN is bundled and the user hasn't opted out.
+        Container.shared.telemetryService().start()
+
         NSApp.setActivationPolicy(.regular)
 
         let onboardingDone = UserDefaults.standard.bool(forKey: Preferences.Key.onboardingCompleted)
@@ -24,6 +28,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             await self.coordinator.viewModel.onAppear()
             Log.app.info("App started — hotkey: Fn")
+        }
+
+        // Re-validate the stored license in the background, then sync the
+        // observable mirror so a downgrade (lapsed subscription) reflects in the
+        // UI live — no relaunch needed.
+        Task { @MainActor in
+            await Container.shared.licenseService().refreshEntitlement()
+            Container.shared.entitlementStore().refresh()
         }
 
         if !onboardingDone {

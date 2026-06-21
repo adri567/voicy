@@ -1,3 +1,4 @@
+import FactoryKit
 import Foundation
 import Observation
 
@@ -7,6 +8,20 @@ import Observation
 @MainActor
 @Observable
 final class BrainViewModel {
+
+    @ObservationIgnored
+    @Injected(\.entitlementService) private var entitlement
+
+    @ObservationIgnored
+    @Injected(\.telemetryService) private var telemetry
+
+    /// Whether the given local model may be installed/used under the plan. Free
+    /// is limited to the standard brain; Pro unlocks all. Cloud models aren't
+    /// gated here (they're Coming Soon regardless).
+    func canUse(_ model: LLMModel) -> Bool {
+        guard let key = model.registryKey else { return true }
+        return entitlement.canUseBrain(registryKey: key)
+    }
 
     enum Status: Equatable {
         case notInstalled
@@ -40,6 +55,7 @@ final class BrainViewModel {
     func install(registryKey: String) async {
         statuses[registryKey] = .downloading(.preparing)
         lastError = nil
+        telemetry.breadcrumb("brain install \(registryKey)", category: .brain)
         do {
             try await MLXTextCorrectionService.install(registryKey: registryKey) { phase in
                 Task { @MainActor in self.updateProgress(key: registryKey, phase: phase) }
@@ -49,6 +65,7 @@ final class BrainViewModel {
         } catch {
             statuses[registryKey] = .notInstalled
             lastError = error.localizedDescription
+            telemetry.capture(error, context: ["stage": "brain.install", "model": registryKey])
         }
     }
 
@@ -63,11 +80,13 @@ final class BrainViewModel {
 
     func remove(registryKey: String) async {
         lastError = nil
+        telemetry.breadcrumb("brain remove \(registryKey)", category: .brain)
         do {
             try MLXTextCorrectionService.remove(registryKey: registryKey)
             statuses[registryKey] = .notInstalled
         } catch {
             lastError = error.localizedDescription
+            telemetry.capture(error, context: ["stage": "brain.remove", "model": registryKey])
         }
     }
 

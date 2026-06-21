@@ -175,16 +175,46 @@ struct SelectionViewModelTests {
         #expect(selection.writtenText == nil)
     }
 
+    @Test("Transform error is reported to telemetry", arguments: SelectionAction.allCases)
+    func errorReportsTelemetry(action: SelectionAction) async {
+        let selection = selecting("hello")
+        let spy = SpyTelemetryService()
+        let viewModel = SelectionViewModel(
+            selectionService: selection,
+            correctionService: StubTextCorrectionService(outcome: .failure),
+            telemetry: spy
+        )
+        await onPhase(.failed, of: viewModel) { viewModel.run(action) }
+        #expect(spy.capturedStages().contains("selection"))
+    }
+
     @Test("A hanging brain times out into a failure hint")
     func timeoutShowsFailure() async {
         let selection = selecting("hello")
         let viewModel = SelectionViewModel(
             selectionService: selection,
             correctionService: StubTextCorrectionService(outcome: .hang),
-            proofreadTimeout: .milliseconds(50)
+            inferenceTimeout: .milliseconds(50)
         )
         await onPhase(.failed, of: viewModel) { viewModel.run(.rephrase) }
         #expect(selection.writtenText == nil)
+    }
+
+    @Test("Model loading does not count against the inference timeout")
+    func loadingDoesNotTimeOut() async {
+        let selection = selecting("helo")
+        // Load is slower than the inference timeout; only inference is timed, so
+        // this must still succeed rather than show the failure hint.
+        let viewModel = SelectionViewModel(
+            selectionService: selection,
+            correctionService: StubTextCorrectionService(
+                outcome: .success("hello"),
+                loadDelay: .milliseconds(120)
+            ),
+            inferenceTimeout: .milliseconds(40)
+        )
+        await onPhase(.idle, of: viewModel) { viewModel.run(.proofread) }
+        #expect(selection.writtenText == "hello")
     }
 
     @Test("A second action is ignored while one is working")
@@ -193,7 +223,7 @@ struct SelectionViewModelTests {
         let viewModel = SelectionViewModel(
             selectionService: selection,
             correctionService: StubTextCorrectionService(outcome: .hang),
-            proofreadTimeout: .seconds(60)
+            inferenceTimeout: .seconds(60)
         )
         await onPhase(.working, of: viewModel) { viewModel.run(.proofread) }
         #expect(viewModel.isWorking)
@@ -201,6 +231,55 @@ struct SelectionViewModelTests {
         #expect(viewModel.runningAction == .proofread)
         #expect(viewModel.phase == .working)
         viewModel.stop()
+    }
+
+    // MARK: - Word-limit gating (shared budget with dictation)
+
+    @Test("Free over limit: blocks, calls onUpgradeNeeded, writes nothing", arguments: SelectionAction.allCases)
+    func freeOverLimitBlocks(action: SelectionAction) async {
+        let selection = selecting("hello")
+        let viewModel = SelectionViewModel(
+            selectionService: selection,
+            correctionService: StubTextCorrectionService(outcome: .success("fixed")),
+            entitlement: MockEntitlementService(plan: .free),
+            usageTracking: MockUsageTrackingService(words: PlanLimits.freeWeeklyWords)
+        )
+        var upgradeAsked = false
+        viewModel.onUpgradeNeeded = { upgradeAsked = true }
+        await onPhase(.failed, of: viewModel) { viewModel.run(action) }
+        #expect(upgradeAsked)
+        #expect(selection.writtenText == nil)
+        viewModel.stop()
+    }
+
+    @Test("Free under limit: books the written words")
+    func freeUnderLimitBooksWords() async {
+        let selection = selecting("helo")
+        let usage = MockUsageTrackingService(words: 5)
+        let viewModel = SelectionViewModel(
+            selectionService: selection,
+            correctionService: StubTextCorrectionService(outcome: .success("hello there")),
+            entitlement: MockEntitlementService(plan: .free),
+            usageTracking: usage
+        )
+        await onPhase(.idle, of: viewModel) { viewModel.run(.proofread) }
+        #expect(selection.writtenText == "hello there")
+        #expect(usage.words == 5 + "hello there".wordCount)
+    }
+
+    @Test("Pro: never blocked, books nothing")
+    func proBooksNothing() async {
+        let selection = selecting("helo")
+        let usage = MockUsageTrackingService(words: 999_999)
+        let viewModel = SelectionViewModel(
+            selectionService: selection,
+            correctionService: StubTextCorrectionService(outcome: .success("hello")),
+            entitlement: MockEntitlementService(plan: .pro),
+            usageTracking: usage
+        )
+        await onPhase(.idle, of: viewModel) { viewModel.run(.proofread) }
+        #expect(selection.writtenText == "hello")
+        #expect(usage.words == 999_999)  // unchanged — Pro isn't metered
     }
 
     // MARK: - Helpers

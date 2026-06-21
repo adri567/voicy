@@ -1,10 +1,15 @@
+import FactoryKit
 import Foundation
 import Observation
 
-/// Holds the user's Mode-Reel (4–6 slots) and the cycle step driven by
-/// `fn + →/←` during recording. The source language is global to the app —
-/// every Translate slot reads it from here, every change re-validates the
-/// existing Translate slots.
+/// Holds the user's Mode-Reel and the cycle step driven by `fn + →/←` during
+/// recording. The source language is global to the app — every Translate slot
+/// reads it from here, every change re-validates the existing Translate slots.
+///
+/// Reel capacity and the Custom mode are plan-gated: a Free user is capped at
+/// `PlanLimits.freeModeSlots` slots and can't use Custom. Slots stored beyond
+/// the current plan's allowance (e.g. after a Pro→Free downgrade) are retained
+/// but skipped by the cycle and excluded from recording — see `usableSlotCount`.
 @MainActor
 @Observable
 final class ModeCycleService {
@@ -12,14 +17,30 @@ final class ModeCycleService {
     /// Minimum reel size: only Raw needs to be present. Slot 0 is permanently
     /// locked as Raw, so the user can never go below this.
     static let minSlots = 1
-    static let maxSlots = 6
+    /// Absolute hard cap on stored slots, independent of plan. Pro's allowance
+    /// equals this; Free is lower (`PlanLimits.freeModeSlots`).
+    static let maxSlots = PlanLimits.proModeSlots
+
+    /// Constructor-injected (defaulting to the Factory registration) so tests
+    /// can pass a mock plan without racing other suites over the container.
+    @ObservationIgnored
+    private let entitlement: any EntitlementService
+
+    /// Injectable so tests get an isolated suite instead of racing other suites
+    /// over `UserDefaults.standard` (the reel is persisted here).
+    @ObservationIgnored
+    private let defaults: UserDefaults
 
     private(set) var modes: [Mode]
     private(set) var step: Int = 0
     private(set) var sourceLanguage: AppLanguage
 
-    init() {
-        let defaults = UserDefaults.standard
+    init(
+        entitlement: any EntitlementService = Container.shared.entitlementService(),
+        defaults: UserDefaults = .standard
+    ) {
+        self.entitlement = entitlement
+        self.defaults = defaults
         let storedSource = defaults.string(forKey: Preferences.Key.sourceLanguageCode) ?? "de"
         self.sourceLanguage = LanguageCatalog.language(for: storedSource)
 
@@ -51,21 +72,47 @@ final class ModeCycleService {
         modes.first?.id == id
     }
 
+    // MARK: - Plan gating
+
+    /// Max slots the current plan permits (Free `freeModeSlots`, Pro `maxSlots`).
+    var slotLimit: Int { entitlement.maxModeSlots }
+
+    /// Whether another slot can be added under the current plan.
+    var canAddSlot: Bool { modes.count < slotLimit }
+
+    /// True when the reel is at the absolute capacity (`maxSlots`), regardless of
+    /// plan — i.e. even Pro can't add more. Lets the UI distinguish "locked by
+    /// plan, upgrade to continue" from "genuinely full".
+    var isAtHardSlotMax: Bool { modes.count >= Self.maxSlots }
+
+    /// Whether the Custom (own-prompt) mode is available — Pro only.
+    var allowsCustomMode: Bool { entitlement.allowsCustomMode }
+
+    /// Number of slots actually usable right now: stored count clamped to the
+    /// plan allowance. After a Pro→Free downgrade the extra slots survive in
+    /// `modes` but fall outside this count, so they neither cycle nor record.
+    var usableSlotCount: Int { min(modes.count, slotLimit) }
+
+    /// True when the slot at `index` is retained but locked out by the plan
+    /// (beyond the allowance). The View dims these and blocks selection.
+    func isPlanLocked(at index: Int) -> Bool { index >= slotLimit }
+
     // MARK: - Derived
 
-    var activeMode: Mode { modes[step] }
+    var activeMode: Mode { modes[min(step, usableSlotCount - 1)] }
 
     // MARK: - Cycle (driven by hotkey)
 
-    /// Advance one slot. Wraps from the last slot back to the first.
+    /// Advance one slot. Wraps within the plan-usable range so locked-out
+    /// (over-allowance) slots are skipped during cycling.
     func cycleForward() {
-        step = (step + 1) % modes.count
+        step = (step + 1) % usableSlotCount
         SoundService.playModeSwitch()
     }
 
-    /// Step one slot back. Wraps from the first slot to the last.
+    /// Step one slot back. Wraps within the plan-usable range.
     func cycleBackward() {
-        step = (step - 1 + modes.count) % modes.count
+        step = (step - 1 + usableSlotCount) % usableSlotCount
         SoundService.playModeSwitch()
     }
 
@@ -74,7 +121,9 @@ final class ModeCycleService {
     }
 
     func setStep(_ value: Int) {
-        guard modes.indices.contains(value) else { return }
+        // Reject indices outside the plan-usable range so a locked slot can
+        // never become the active recording mode.
+        guard value >= 0, value < usableSlotCount else { return }
         step = value
     }
 
@@ -87,13 +136,16 @@ final class ModeCycleService {
         mutate(&copy)
         // Slot 0 is locked as the Raw fallback: refuse any type change.
         if idx == 0 { copy.type = originalType }
+        // Custom mode is Pro-only: refuse a switch into it on Free.
+        if copy.type == .custom, !allowsCustomMode { copy.type = originalType }
         modes[idx] = copy
         persistModes()
     }
 
     @discardableResult
     func addMode() -> Mode? {
-        guard modes.count < Self.maxSlots else { return nil }
+        // Gate on the plan allowance, not just the hard cap.
+        guard canAddSlot else { return nil }
         // New slots default to .translate (not .raw — that's the locked slot 0).
         let target = LanguageCatalog.all.first(where: { $0.code != sourceLanguage.code })?.code ?? "en"
         let new = Mode(type: .translate, targetCode: target)
@@ -133,7 +185,7 @@ final class ModeCycleService {
     func setSourceLanguage(_ code: String) {
         let next = LanguageCatalog.language(for: code)
         sourceLanguage = next
-        UserDefaults.standard.set(next.code, forKey: Preferences.Key.sourceLanguageCode)
+        defaults.set(next.code, forKey: Preferences.Key.sourceLanguageCode)
         reconcileTargets()
         persistModes()
     }
@@ -142,7 +194,7 @@ final class ModeCycleService {
 
     private func persistModes() {
         guard let data = try? JSONEncoder().encode(modes) else { return }
-        UserDefaults.standard.set(data, forKey: Preferences.Key.modesReel)
+        defaults.set(data, forKey: Preferences.Key.modesReel)
     }
 
     /// Ensure every Translate slot has a target that differs from the current

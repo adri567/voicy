@@ -14,6 +14,7 @@ final class RecordingViewModel {
         case correcting
         case noModel
         case noBrain
+        case limitReached
     }
 
     /// Resolved fresh on every access. We deliberately do *not* use
@@ -37,6 +38,26 @@ final class RecordingViewModel {
 
     @ObservationIgnored
     @Injected(\.snippetService) private var snippetService
+
+    /// Constructor-injected (defaulting to the Factory registrations) so unit
+    /// tests can pass mocks directly without racing other suites over the global
+    /// container — the same pattern SelectionViewModel uses.
+    @ObservationIgnored
+    private let entitlement: any EntitlementService
+    @ObservationIgnored
+    private let usageTracking: any UsageTrackingService
+    @ObservationIgnored
+    private let telemetry: any TelemetryService
+
+    init(
+        entitlement: any EntitlementService = Container.shared.entitlementService(),
+        usageTracking: any UsageTrackingService = Container.shared.usageTrackingService(),
+        telemetry: any TelemetryService = Container.shared.telemetryService()
+    ) {
+        self.entitlement = entitlement
+        self.usageTracking = usageTracking
+        self.telemetry = telemetry
+    }
 
     private(set) var state: RecordingState = .loadingModel
     private(set) var transcript: String = ""
@@ -87,6 +108,7 @@ final class RecordingViewModel {
             try await service.loadModel()
         } catch {
             Log.recording.error("RecordingViewModel: model loading failed: \(String(describing: error), privacy: .public)")
+            telemetry.capture(error, context: ["stage": "loadModel"])
         }
         state = .idle
         Task { @MainActor [weak self] in
@@ -109,8 +131,9 @@ final class RecordingViewModel {
             await stopAndTranscribe()
         case .idle:
             clearTranscript()
-        case .noModel, .noBrain:
-            // Re-check on next press — user may have installed a model since.
+        case .noModel, .noBrain, .limitReached:
+            // Re-check on next press — user may have installed a model or the
+            // rolling window may have freed up capacity since.
             await startRecording()
         case .loadingModel, .transcribing, .correcting:
             break
@@ -146,6 +169,15 @@ final class RecordingViewModel {
         startInProgress = true
         defer { startInProgress = false }
         startCanceled = false
+        telemetry.breadcrumb("recording start", category: .recording)
+
+        // Pre-flight: a Free user who's reached the weekly word allowance can't
+        // start a new dictation. A recording already in flight is never
+        // interrupted — only new starts are blocked.
+        if wordLimitReached {
+            showLimitReachedHint()
+            return
+        }
 
         // Pre-flight: nothing to record into if there's no voice model yet.
         guard service.isModelInstalled() else {
@@ -168,6 +200,7 @@ final class RecordingViewModel {
             // Fall through to the lazy-load path below.
         } catch {
             Log.recording.error("RecordingViewModel: start recording failed: \(String(describing: error), privacy: .public)")
+            telemetry.capture(error, context: ["stage": "startRecording"])
             return
         }
 
@@ -181,6 +214,7 @@ final class RecordingViewModel {
             state = .recording
         } catch {
             Log.recording.error("RecordingViewModel: lazy load + start failed: \(String(describing: error), privacy: .public)")
+            telemetry.capture(error, context: ["stage": "startRecording.lazyLoad"])
             showNoModelHint()
         }
     }
@@ -209,6 +243,7 @@ final class RecordingViewModel {
     /// been pulled into RAM yet (common right after install / after promoting
     /// a fallback active key), load it and retry once.
     private func runCorrection(text: String, mode: Mode, sourceLanguage: AppLanguage) async -> String? {
+        telemetry.breadcrumb("correction start mode=\(mode.type.rawValue)", category: .correction)
         do {
             return try await correctionService.correct(text, mode: mode, sourceLanguage: sourceLanguage)
         } catch TextCorrectionError.modelNotLoaded {
@@ -217,10 +252,12 @@ final class RecordingViewModel {
                 return try await correctionService.correct(text, mode: mode, sourceLanguage: sourceLanguage)
             } catch {
                 Log.recording.error("RecordingViewModel: brain lazy-load + correct failed: \(String(describing: error), privacy: .public)")
+                telemetry.capture(error, context: ["stage": "correction.lazyLoad", "mode": mode.type.rawValue])
                 return nil
             }
         } catch {
             Log.recording.error("RecordingViewModel: correction failed: \(String(describing: error), privacy: .public)")
+            telemetry.capture(error, context: ["stage": "correction", "mode": mode.type.rawValue])
             return nil
         }
     }
@@ -247,6 +284,17 @@ final class RecordingViewModel {
         scheduleDismiss(to: .noBrain)
     }
 
+    private func showLimitReachedHint() {
+        scheduleDismiss(to: .limitReached)
+    }
+
+    /// True when a Free user has reached the rolling weekly word allowance.
+    /// Pro (a `nil` limit) never trips this.
+    private var wordLimitReached: Bool {
+        guard let limit = entitlement.weeklyWordLimit else { return false }
+        return usageTracking.wordsUsedLast7Days() >= limit
+    }
+
     private func scheduleDismiss(to errorState: RecordingState) {
         state = errorState
         noModelDismissTask?.cancel()
@@ -263,6 +311,7 @@ final class RecordingViewModel {
         audioLevel = 0
         let mode = modeCycle.activeMode
         let sourceLanguage = modeCycle.sourceLanguage
+        telemetry.breadcrumb("recording stop mode=\(mode.type.rawValue)", category: .recording)
         state = .transcribing
         await Task.yield()
         do {
@@ -299,6 +348,11 @@ final class RecordingViewModel {
                 state = .idle
             }
             if !finalText.isEmpty {
+                // Book the pasted words against the rolling window. Skipped for
+                // Pro (unlimited) so we don't write counters we never read.
+                if entitlement.weeklyWordLimit != nil {
+                    usageTracking.recordWords(finalText.wordCount)
+                }
                 let engine = TranscriptionEngine.current
                 let target = pendingTargetApp
                 pendingTargetApp = nil
@@ -312,6 +366,7 @@ final class RecordingViewModel {
             }
         } catch {
             Log.recording.error("RecordingViewModel: transcription failed: \(String(describing: error), privacy: .public)")
+            telemetry.capture(error, context: ["stage": "transcribe"])
             state = .idle
         }
     }

@@ -1,0 +1,17 @@
+# Template for .sentryclirc — copy to `.sentryclirc` (gitignored) and fill in.
+# Used by `sentry-cli debug-files upload` in scripts/release.sh to upload dSYMs
+# so production crash stacktraces are symbolicated.
+#
+# Create an auth token at: https://sentry.io → Settings → Auth Tokens
+# (needs the `project:releases` and `project:write` scopes).
+#
+# Install the CLI once: brew install getsentry/tools/sentry-cli
+
+[auth]
+token = YOUR_SENTRY_AUTH_TOKEN
+
+[defaults]
+org = your-org-slug
+project = voicy
+# EU region: keep this matching your Sentry project's region.
+url = https://sentry.io/

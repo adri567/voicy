@@ -138,6 +138,8 @@ struct MenuBarStatusView: View {
             statusRow(color: .yellow, label: "No voice model installed")
         case .noBrain:
             statusRow(color: .yellow, label: "No AI model installed")
+        case .limitReached:
+            statusRow(color: .yellow, label: "Weekly limit reached")
         }
     }
 

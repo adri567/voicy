@@ -5,6 +5,7 @@ struct ModesView: View {
     @Bindable var cycle: ModeCycleService
 
     @State private var activeID: UUID?
+    @State private var paywall: UpgradeContext?
 
     private var activeMode: Mode {
         if let id = activeID, let m = cycle.modes.first(where: { $0.id == id }) {
@@ -42,6 +43,7 @@ struct ModesView: View {
                     .padding(.bottom, 56)
             }
         }
+        .paywall($paywall)
         .onAppear {
             if activeID == nil { activeID = cycle.modes[cycle.step].id }
         }
@@ -129,7 +131,7 @@ struct ModesView: View {
                     .tracking(-0.3)
                     .foregroundStyle(DS.Palette.ink2)
                 Spacer()
-                MetaLabel(text: "\(cycle.modes.count) of \(ModeCycleService.maxSlots) slots · cycle bidirectionally")
+                MetaLabel(text: "\(cycle.usableSlotCount) of \(cycle.slotLimit) slots · cycle bidirectionally")
             }
             .padding(.bottom, 20)
 
@@ -148,10 +150,16 @@ struct ModesView: View {
                             }
                         }
 
-                        AddSlotButton(disabled: cycle.modes.count >= ModeCycleService.maxSlots) {
+                        AddSlotButton(
+                            locked: !cycle.canAddSlot && !cycle.isAtHardSlotMax,
+                            disabled: cycle.isAtHardSlotMax
+                        ) {
                             if let new = cycle.addMode() {
                                 activeID = new.id
                                 cycle.setStep(cycle.modes.count - 1)
+                            } else {
+                                // Plan-locked (Free at its allowance) — offer the upgrade.
+                                paywall = .modeSlots
                             }
                         }
                     }
@@ -204,9 +212,11 @@ struct ModesView: View {
             sourceLanguage: cycle.sourceLanguage,
             canRemove: cycle.modes.count > ModeCycleService.minSlots && activeIndex != 0,
             isLocked: cycle.isLocked(at: activeIndex),
+            allowsCustomMode: cycle.allowsCustomMode,
             onChange: { mutate in cycle.update(id: activeMode.id, mutate: mutate) },
             onMove: { dir in cycle.move(id: activeMode.id, by: dir) },
-            onRemove: { cycle.removeMode(id: activeMode.id) }
+            onRemove: { cycle.removeMode(id: activeMode.id) },
+            onCustomLocked: { paywall = .customMode }
         )
     }
 

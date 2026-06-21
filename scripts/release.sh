@@ -53,6 +53,19 @@ fi
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
 echo "▸ Built $APP_NAME $VERSION"
 
+# ── 1b. Upload dSYMs to Sentry (config-gated) ────────────────────────────────
+# Symbolicates production crash reports. Needs `sentry-cli` (brew install
+# getsentry/tools/sentry-cli) and a `.sentryclirc` at the repo root with an
+# auth token + org/project (see .sentryclirc.example). Both gitignored/optional,
+# so a build without them just skips this — same pattern as signing/notarizing.
+DSYM_DIR="$ARCHIVE/dSYMs"
+if command -v sentry-cli >/dev/null 2>&1 && [ -f "$ROOT/.sentryclirc" ] && [ -d "$DSYM_DIR" ]; then
+    echo "▸ Uploading dSYMs to Sentry…"
+    ( cd "$ROOT" && sentry-cli debug-files upload "$DSYM_DIR" )
+else
+    echo "⚠︎ Skipping Sentry dSYM upload (need sentry-cli + .sentryclirc + dSYMs)."
+fi
+
 # ── 2. Developer ID signing (account-gated) ──────────────────────────────────
 if [ -n "$DEVELOPER_ID" ]; then
     echo "▸ Developer-ID signing with hardened runtime…"

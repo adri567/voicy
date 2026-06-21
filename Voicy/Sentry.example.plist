@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template for Sentry.plist. Copy this file to `Sentry.plist` (same folder) and
+  paste your project's DSN. The real Sentry.plist is gitignored — only this
+  template is committed.
+
+  The DSN is not a secret (it ships in every app and only permits sending
+  events), but it stays out of source per the project's no-hardcoding rule.
+
+  While DSN is the placeholder below (not an https URL), telemetry stays OFF —
+  SentryConfig.isConfigured returns false and the app uses NoopTelemetryService.
+
+  Use your project's EU-region DSN (ingest.de.sentry.io) to keep data in the EU.
+-->
+<plist version="1.0">
+<dict>
+    <key>DSN</key>
+    <string>YOUR_SENTRY_DSN_HERE</string>
+    <key>Environment</key>
+    <string>production</string>
+</dict>
+</plist>

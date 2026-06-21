@@ -8,8 +8,19 @@ final class SnippetsViewModel {
     @ObservationIgnored
     @Injected(\.snippetService) private var service
 
+    @ObservationIgnored
+    @Injected(\.entitlementService) private var entitlement
+
     private(set) var snippets: [SnippetDTO] = []
     var errorMessage: String?
+
+    /// Whether the user may create another snippet under their plan. Free is
+    /// capped at `PlanLimits.freeSnippets`; Pro (a `nil` limit) is unlimited.
+    /// Editing an existing snippet is never gated — only new creation.
+    var canCreateSnippet: Bool {
+        guard let max = entitlement.maxSnippets else { return true }
+        return snippets.count < max
+    }
 
     func reload() async {
         do {

@@ -1,45 +1,54 @@
+import Foundation
 import Testing
 @testable import Voicy
 
 @MainActor
-@Suite("ModeCycleService", .serialized)
+@Suite("ModeCycleService")
 struct ModeCycleServiceTests {
 
-    @Test("Default-Reel: 4 Slots, step=0, Source=de")
+    /// Isolated defaults per test instance so the persisted reel never races or
+    /// inherits another suite's writes. Pro entitlement so slot mechanics run at
+    /// full capacity — plan gating has its own suite below.
+    let defaults: UserDefaults
+
+    init() {
+        defaults = UserDefaults(suiteName: "modecycle.test.\(UUID().uuidString)")!
+    }
+
+    private func makeService() -> ModeCycleService {
+        ModeCycleService(entitlement: MockEntitlementService(plan: .pro), defaults: defaults)
+    }
+
+    @Test("Default-Reel: 3 Slots, step=0, Source=de")
     func defaultReel() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
-        #expect(service.modes.count == 4)
+        let service = makeService()
+        #expect(service.modes.count == 3)
         #expect(service.step == 0)
         #expect(service.sourceLanguage.code == "de")
         #expect(service.modes[0].type == .raw)
         #expect(service.modes[1].type == .translate)
-        #expect(service.modes[2].type == .translate)
-        #expect(service.modes[3].type == .email)
+        #expect(service.modes[2].type == .email)
     }
 
     @Test("cycleForward wrappt vom letzten Slot zu 0")
     func cycleForwardWraps() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
-        service.setStep(service.modes.count - 1)
+        let service = makeService()
+        service.setStep(service.usableSlotCount - 1)
         service.cycleForward()
         #expect(service.step == 0)
     }
 
     @Test("cycleBackward wrappt von 0 zum letzten Slot")
     func cycleBackwardWraps() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
+        let service = makeService()
         service.setStep(0)
         service.cycleBackward()
-        #expect(service.step == service.modes.count - 1)
+        #expect(service.step == service.usableSlotCount - 1)
     }
 
     @Test("addMode: clamped bei maxSlots")
     func addModeClampedAtMax() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
+        let service = makeService()
         while service.modes.count < ModeCycleService.maxSlots {
             _ = service.addMode()
         }
@@ -51,10 +60,8 @@ struct ModeCycleServiceTests {
 
     @Test("removeMode: kann alle non-raw Slots entfernen, Raw bleibt")
     func removeModeDownToRawOnly() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
-        #expect(service.modes.count == 4)
-        // Remove every non-zero slot, repeatedly grabbing the new slot 1.
+        let service = makeService()
+        #expect(service.modes.count == 3)
         while service.modes.count > 1 {
             let id = service.modes[1].id
             service.removeMode(id: id)
@@ -65,8 +72,7 @@ struct ModeCycleServiceTests {
 
     @Test("move: tauscht Positionen und step folgt")
     func moveReorders() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
+        let service = makeService()
         let originalSecond = service.modes[1].id
         service.setStep(1)
         service.move(id: originalSecond, by: 1)
@@ -76,23 +82,18 @@ struct ModeCycleServiceTests {
 
     @Test("update mutates only the given slot")
     func updateMutates() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
+        let service = makeService()
         let id = service.modes[1].id
         service.update(id: id) { $0.targetCode = "es" }
         #expect(service.modes[1].targetCode == "es")
-        // Other slots unchanged
         #expect(service.modes[0].type == .raw)
     }
 
     @Test("setSourceLanguage: Translate-Slots mit target==newSource werden remapped")
     func setSourceLanguageReconcilesTargets() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
-        // Force a translate slot to target English.
+        let service = makeService()
         let id = service.modes[1].id
         service.update(id: id) { $0.targetCode = "en" }
-        // Now switch source to English — the slot must remap to something else.
         service.setSourceLanguage("en")
         #expect(service.sourceLanguage.code == "en")
         #expect(service.modes[1].targetCode != "en")
@@ -100,27 +101,24 @@ struct ModeCycleServiceTests {
 
     @Test("Persistence: nach setSourceLanguage liest neuer Service den Wert")
     func sourcePersists() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
+        let service = makeService()
         service.setSourceLanguage("es")
-        let next = ModeCycleService()
+        let next = makeService()
         #expect(next.sourceLanguage.code == "es")
     }
 
     @Test("Persistence: nach update wird Reel persisted")
     func modesPersist() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
+        let service = makeService()
         let id = service.modes[1].id
         service.update(id: id) { $0.targetCode = "it" }
-        let next = ModeCycleService()
+        let next = makeService()
         #expect(next.modes[1].targetCode == "it")
     }
 
     @Test("Slot 0: Type kann nicht via update geändert werden")
     func slot0TypeLocked() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
+        let service = makeService()
         let id = service.modes[0].id
         service.update(id: id) { $0.type = .email }
         #expect(service.modes[0].type == .raw)
@@ -128,10 +126,7 @@ struct ModeCycleServiceTests {
 
     @Test("Slot 0: removeMode wird ignoriert")
     func slot0RemoveBlocked() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
-        // Add a 5th slot so we're above minSlots and the min-clamp doesn't
-        // mask the slot-0-lock behaviour.
+        let service = makeService()
         _ = service.addMode()
         let countBefore = service.modes.count
         let id = service.modes[0].id
@@ -142,8 +137,7 @@ struct ModeCycleServiceTests {
 
     @Test("Slot 0: move wird ignoriert")
     func slot0MoveBlocked() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
+        let service = makeService()
         let id = service.modes[0].id
         service.move(id: id, by: 1)
         #expect(service.modes[0].id == id)
@@ -151,13 +145,88 @@ struct ModeCycleServiceTests {
 
     @Test("Slot 1: move(by: -1) verschiebt nicht in slot 0")
     func cannotDisplaceSlot0() {
-        clearModeCycleDefaults()
-        let service = ModeCycleService()
+        let service = makeService()
         let slot0 = service.modes[0].id
         let slot1 = service.modes[1].id
         service.move(id: slot1, by: -1)
-        // Slot 0 stays put. Slot 1 still at index 1.
         #expect(service.modes[0].id == slot0)
         #expect(service.modes[1].id == slot1)
+    }
+}
+
+@MainActor
+@Suite("ModeCycleService plan gating")
+struct ModeCycleServicePlanGatingTests {
+
+    let defaults: UserDefaults
+
+    init() {
+        defaults = UserDefaults(suiteName: "modecycle.gating.\(UUID().uuidString)")!
+    }
+
+    private func makeService(plan: Plan) -> ModeCycleService {
+        ModeCycleService(entitlement: MockEntitlementService(plan: plan), defaults: defaults)
+    }
+
+    @Test("Free: slotLimit ist freeModeSlots, canAddSlot false ab Limit")
+    func freeSlotLimit() {
+        let service = makeService(plan: .free)
+        #expect(service.slotLimit == PlanLimits.freeModeSlots)
+        // Default reel already fills the free allowance (Raw + Translate + Email).
+        #expect(service.modes.count == PlanLimits.freeModeSlots)
+        #expect(service.canAddSlot == false)
+        #expect(service.addMode() == nil)
+        #expect(service.modes.count == PlanLimits.freeModeSlots)
+    }
+
+    @Test("Pro: kann bis maxSlots hinzufügen")
+    func proCanFillToMax() {
+        let service = makeService(plan: .pro)
+        #expect(service.slotLimit == ModeCycleService.maxSlots)
+        while service.canAddSlot { _ = service.addMode() }
+        #expect(service.modes.count == ModeCycleService.maxSlots)
+    }
+
+    @Test("Free: Custom-Mode wird beim update abgewiesen")
+    func freeRejectsCustomMode() {
+        let service = makeService(plan: .free)
+        #expect(service.allowsCustomMode == false)
+        let id = service.modes[1].id
+        let originalType = service.modes[1].type
+        service.update(id: id) { $0.type = .custom }
+        #expect(service.modes[1].type == originalType)
+    }
+
+    @Test("Pro: Custom-Mode wird akzeptiert")
+    func proAllowsCustomMode() {
+        let service = makeService(plan: .pro)
+        #expect(service.allowsCustomMode)
+        let id = service.modes[1].id
+        service.update(id: id) { $0.type = .custom }
+        #expect(service.modes[1].type == .custom)
+    }
+
+    @Test("Free nach Pro-Reel: usableSlotCount klemmt, Cycle überspringt locked slots")
+    func downgradeClampsUsableSlots() {
+        // Build a 6-slot reel as Pro, persisting to the shared (isolated) defaults.
+        let pro = makeService(plan: .pro)
+        while pro.canAddSlot { _ = pro.addMode() }
+        #expect(pro.modes.count == ModeCycleService.maxSlots)
+
+        // Reload the same reel as Free.
+        let free = makeService(plan: .free)
+        #expect(free.modes.count == ModeCycleService.maxSlots)
+        #expect(free.usableSlotCount == PlanLimits.freeModeSlots)
+        #expect(free.isPlanLocked(at: PlanLimits.freeModeSlots))
+        #expect(free.isPlanLocked(at: 0) == false)
+
+        // setStep can't select a plan-locked slot.
+        free.setStep(ModeCycleService.maxSlots - 1)
+        #expect(free.step == 0)
+
+        // Cycling stays within the usable range.
+        free.setStep(PlanLimits.freeModeSlots - 1)
+        free.cycleForward()
+        #expect(free.step == 0)
     }
 }

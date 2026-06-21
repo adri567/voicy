@@ -128,4 +128,69 @@ extension Container {
         }
         .singleton
     }
+
+    /// Plan/entitlement source of truth. Reads the Pro flag from UserDefaults;
+    /// later backed by the Lemon Squeezy license check. Not a singleton — it's a
+    /// stateless UserDefaults reader, so a fresh instance per resolution is both
+    /// correct and keeps tests from leaking a cached plan across suites.
+    var entitlementService: Factory<any EntitlementService> {
+        Factory(self) {
+            MainActor.assumeIsolated { DefaultEntitlementService() }
+        }
+    }
+
+    /// Metered-usage counters (rolling word window + monthly file minutes).
+    /// Stateless over UserDefaults — see `entitlementService` for why it's not a
+    /// singleton.
+    var usageTrackingService: Factory<any UsageTrackingService> {
+        Factory(self) {
+            MainActor.assumeIsolated { DefaultUsageTrackingService() }
+        }
+    }
+
+    /// Keychain-backed secure storage for the license key + instance id.
+    /// Stateless and thread-safe — a fresh instance per resolution is fine.
+    var secureStore: Factory<any SecureStore> {
+        Factory(self) { KeychainStore() }
+    }
+
+    /// Lemon Squeezy license API client. Singleton: holds the shared URLSession
+    /// and carries no per-call state.
+    var lemonSqueezyClient: Factory<any LemonSqueezyClient> {
+        Factory(self) { DefaultLemonSqueezyClient() }
+            .singleton
+    }
+
+    /// License lifecycle (activate/validate/deactivate) and the sole writer of
+    /// the Pro flag once a real store is wired up. Singleton so the launch-time
+    /// refresh and the Settings UI share one instance.
+    var licenseService: Factory<any LicenseService> {
+        Factory(self) {
+            MainActor.assumeIsolated { DefaultLicenseService() }
+        }
+        .singleton
+    }
+
+    /// Observable mirror of the Pro flag for the UI. Singleton so the window
+    /// (via `.environment`) and the Settings/launch paths share one instance.
+    var entitlementStore: Factory<EntitlementStore> {
+        Factory(self) {
+            MainActor.assumeIsolated { EntitlementStore() }
+        }
+        .singleton
+    }
+
+    /// Crash reporting + telemetry. Resolves to the Sentry-backed service only
+    /// when a real DSN is bundled (`Sentry.plist`); otherwise a no-op, so dev
+    /// and test builds never start the SDK. Singleton so launch-time `start()`
+    /// and the Settings toggle share one instance.
+    var telemetryService: Factory<any TelemetryService> {
+        Factory(self) {
+            let config = SentryConfig.loadFromBundle()
+            return config.isConfigured
+                ? DefaultTelemetryService(config: config)
+                : NoopTelemetryService()
+        }
+        .singleton
+    }
 }

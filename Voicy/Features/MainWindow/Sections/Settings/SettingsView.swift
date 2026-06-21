@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Bindable var cycle: ModeCycleService
 
     @AppStorage(Preferences.Key.onboardingClickSounds) private var clickSounds = true
+    @AppStorage(Preferences.Key.telemetryEnabled) private var telemetryEnabled = true
 
     @State private var showingClearMicConfirmation = false
     @State private var showingClearFileConfirmation = false
@@ -17,6 +18,9 @@ struct SettingsView: View {
     @Injected(\.transcriptionHistoryService) private var micHistoryService
     @Injected(\.fileTranscriptionHistoryService) private var fileHistoryService
     @Injected(\.updateService) private var updateService
+    @Injected(\.telemetryService) private var telemetry
+
+    @State private var developer = DeveloperSettingsViewModel()
 
     private let releaseNotesURL = URL(string: "https://github.com/adri567/voicy/releases")!
 
@@ -47,6 +51,9 @@ struct SettingsView: View {
             Button("Delete", role: .destructive) { clearFileHistory() }
         } message: {
             Text("All file transcriptions will be permanently removed from Transcribe history.")
+        }
+        .onChange(of: telemetryEnabled) { _, enabled in
+            telemetry.setEnabled(enabled)
         }
     }
 
@@ -101,10 +108,18 @@ struct SettingsView: View {
             MetaLabel(text: "About this build", color: DS.Palette.paper.opacity(0.6))
                 .padding(.bottom, 12)
 
+            // Hidden gesture: 7 taps reveal the Developer section. onTapGesture
+            // (not a Button) so there's no hover/cursor hint that it's tappable.
+            // The filled frame + explicit contentShape make the whole version
+            // line a reliable target — bare text is too small/flaky to hit.
             Text("Voicy \(Text(version).italic())")
                 .font(DS.Font.serif(28))
                 .foregroundStyle(DS.Palette.paper)
-                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+                .onTapGesture { developer.registerVersionTap() }
+                .padding(.bottom, 4)
 
             Text("Apple Silicon · macOS 26+\nReleased \(releaseDate)\nLocal-first · no audio leaves your Mac")
                 .font(DS.Font.mono(11))
@@ -136,6 +151,8 @@ struct SettingsView: View {
     private var sections: some View {
         VStack(alignment: .leading, spacing: 36) {
 
+            LicenseSection()
+
             SettingsSection(title: "General", caption: "Small comforts while Voicy runs") {
                 SettingsToggleRow(label: "Play a sound on start / stop",
                                   desc: "A soft click when dictation begins and ends.",
@@ -145,16 +162,6 @@ struct SettingsView: View {
 
             SettingsSection(title: "Language", caption: "What you speak — and what Voicy listens for") {
                 SettingsLanguageRow(cycle: cycle)
-            }
-
-            SettingsSection(title: "Transcription", caption: "Defaults the engine uses") {
-                SettingsToggleRow(label: "Transcript popup after recording",
-                                  desc: "Briefly shows the result as a popup above the menu bar.",
-                                  value: Binding(
-                                    get: { viewModel.showTranscript },
-                                    set: { _ in viewModel.toggleShowTranscript() }
-                                  ),
-                                  isMock: false)
             }
 
             SettingsSection(title: "Privacy", caption: "Where your words go — and where they don't") {
@@ -170,8 +177,17 @@ struct SettingsView: View {
                 )
             }
 
-            SettingsSection(title: "Onboarding", caption: "Replay the first-run tour any time you like") {
-                OnboardingResetRow()
+            SettingsSection(title: "Diagnostics", caption: "Help fix the crashes you hit") {
+                SettingsToggleRow(
+                    label: "Send crash reports",
+                    desc: "Shares anonymous crash and error reports so bugs get fixed. No transcripts, audio, or snippets — ever.",
+                    value: $telemetryEnabled,
+                    isMock: false
+                )
+            }
+
+            if developer.isUnlocked {
+                DeveloperSection(developer: developer, recording: viewModel)
             }
 
             ColophonSection()

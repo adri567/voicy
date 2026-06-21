@@ -23,3 +23,10 @@ build/
 
 # Project scratch
 progress.txt
+
+# Lemon Squeezy config — real values are private; commit only the template.
+Voicy/LemonSqueezy.plist
+
+# Sentry config — DSN/auth are kept out of source; commit only the templates.
+Voicy/Sentry.plist
+.sentryclirc

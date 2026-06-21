@@ -15,6 +15,9 @@ final class TranscribeViewModel {
     @ObservationIgnored @Injected(\.parakeetTranscriptionService) private var parakeetService
     @ObservationIgnored @Injected(\.fileTranscriptionHistoryService) private var historyService
     @ObservationIgnored @Injected(\.diarizationService) private var diarizationService
+    @ObservationIgnored @Injected(\.entitlementService) private var entitlement
+    @ObservationIgnored @Injected(\.usageTrackingService) private var usageTracking
+    @ObservationIgnored @Injected(\.telemetryService) private var telemetry
 
     // MARK: - Engine + language selection (isolated from the global mic engine)
 
@@ -30,6 +33,10 @@ final class TranscribeViewModel {
 
     var stage: TranscribeStage = .idle
     var processingError: String?
+
+    /// Set when a Free user's file would exceed the monthly minute allowance.
+    /// The View renders an upgrade prompt instead of a transcript.
+    var fileLimitExceeded = false
 
     var fileURL: URL?
     var fileMetadata: TranscribeFileInfo?
@@ -178,8 +185,10 @@ final class TranscribeViewModel {
         cancelProcessing()
         resetPlayerState()
         processingError = nil
+        fileLimitExceeded = false
         fileURL = url
         stage = .processing
+        telemetry.breadcrumb("file transcribe start", category: .file)
 
         processingTask = Task { [weak self] in
             guard let me = self else { return }
@@ -189,6 +198,7 @@ final class TranscribeViewModel {
                 // Swallow — caller already moved state forward.
             } catch {
                 guard !Task.isCancelled else { return }
+                me.telemetry.capture(error, context: ["stage": "file.transcribe"])
                 me.processingError = error.localizedDescription
                 me.stage = .idle
             }
@@ -210,6 +220,7 @@ final class TranscribeViewModel {
         realSegments = []
         latestEntryId = nil
         processingError = nil
+        fileLimitExceeded = false
         stage = .idle
     }
 
@@ -236,6 +247,18 @@ final class TranscribeViewModel {
 
         fileMetadata = loadedMetadata
         realWaveform = loadedWaveform
+
+        // Gate before the expensive transcription: a Free user whose monthly
+        // minute allowance can't absorb this file gets an upgrade prompt. When
+        // the duration is unknown (0) we let it through and meter post-hoc.
+        if let limit = entitlement.monthlyFileMinuteLimit, loadedMetadata.durationSeconds > 0 {
+            let needed = Self.billableMinutes(seconds: Double(loadedMetadata.durationSeconds))
+            if usageTracking.fileMinutesUsedThisMonth() + needed > limit {
+                fileLimitExceeded = true
+                stage = .idle
+                return
+            }
+        }
 
         let service: any TranscriptionService = switch selectedEngine {
         case .whisper:  whisperService
@@ -313,7 +336,22 @@ final class TranscribeViewModel {
             }
         }
 
+        // Book the file's minutes against the monthly allowance (Free only).
+        if entitlement.monthlyFileMinuteLimit != nil {
+            let seconds = loadedMetadata.durationSeconds > 0
+                ? Double(loadedMetadata.durationSeconds)
+                : result.duration
+            usageTracking.recordFileMinutes(Self.billableMinutes(seconds: seconds))
+        }
+
         stage = .done
+    }
+
+    /// Whole minutes billed for `seconds`, rounding any partial minute up.
+    /// Returns 0 for non-positive input (unknown duration).
+    nonisolated static func billableMinutes(seconds: Double) -> Int {
+        guard seconds > 0 else { return 0 }
+        return max(1, Int(ceil(seconds / 60)))
     }
 
     // MARK: - Playback

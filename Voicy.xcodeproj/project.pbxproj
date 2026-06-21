@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5AAAAAA10000000000000003 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5AAAAAA10000000000000002 /* Sparkle */; };
+		5E27A1C50000000000000003 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 5E27A1C50000000000000002 /* Sentry */; };
 		603B6B162FB285E00062E37D /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 603B6B152FB285E00062E37D /* MLXLLM */; };
 		603B6B182FB285E00062E37D /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = 603B6B172FB285E00062E37D /* MLXLMCommon */; };
 		603B6B1B2FB314400062E37D /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = 603B6B1A2FB314400062E37D /* HuggingFace */; };
@@ -86,6 +87,7 @@
 				603B6B2D2FB32A560062E37D /* FluidAudio in Frameworks */,
 				60950AE92FAE78A300AC92A9 /* FactoryKit in Frameworks */,
 				5AAAAAA10000000000000003 /* Sparkle in Frameworks */,
+				5E27A1C50000000000000003 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -163,6 +165,7 @@
 				603B6B202FB3148E0062E37D /* MLXHuggingFace */,
 				603B6B2C2FB32A560062E37D /* FluidAudio */,
 				5AAAAAA10000000000000002 /* Sparkle */,
+				5E27A1C50000000000000002 /* Sentry */,
 			);
 			productName = Voicy;
 			productReference = 60950A812FAE710C00AC92A9 /* Voicy.app */;
@@ -254,6 +257,7 @@
 				603B6B1C2FB3146B0062E37D /* XCRemoteSwiftPackageReference "swift-transformers" */,
 				603B6B2B2FB32A560062E37D /* XCRemoteSwiftPackageReference "FluidAudio" */,
 				5AAAAAA10000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				5E27A1C50000000000000001 /* XCRemoteSwiftPackageReference "Sentry" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 60950A822FAE710C00AC92A9 /* Products */;
@@ -643,6 +647,14 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		5E27A1C50000000000000001 /* XCRemoteSwiftPackageReference "Sentry" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.0;
+			};
+		};
 		603B6B142FB285E00062E37D /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
@@ -698,6 +710,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5AAAAAA10000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		5E27A1C50000000000000002 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E27A1C50000000000000001 /* XCRemoteSwiftPackageReference "Sentry" */;
+			productName = Sentry;
 		};
 		603B6B152FB285E00062E37D /* MLXLLM */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -60,6 +60,17 @@ nonisolated enum ModelStorage {
         return hubCacheRoot().appendingPathComponent(folder, isDirectory: true)
     }
 
+    /// Top-level folders where the three model families live, filtered to those
+    /// that exist on disk — for the Developer "reveal models in Finder" action.
+    static func revealableModelRoots() -> [URL] {
+        let candidates = [
+            documentsHuggingFaceModels().deletingLastPathComponent(), // ~/Documents/huggingface
+            hubCacheRoot(),
+            fluidAudioModelsRoot()
+        ]
+        return candidates.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
     // MARK: - Generic file ops
 
     static func exists(at url: URL) -> Bool {

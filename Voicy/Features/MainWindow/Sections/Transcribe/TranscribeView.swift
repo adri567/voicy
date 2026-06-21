@@ -5,6 +5,7 @@ struct TranscribeView: View {
 
     @State private var viewModel = TranscribeViewModel()
     @State private var historyFilter: TranscribeHistorySection.Filter = .all
+    @State private var paywall: UpgradeContext?
 
     @Query(sort: \FileTranscriptionEntry.createdAt, order: .reverse)
     private var fileEntries: [FileTranscriptionEntry]
@@ -29,6 +30,10 @@ struct TranscribeView: View {
             }
         }
         .background(DS.Palette.paper)
+        .paywall($paywall)
+        .onChange(of: viewModel.fileLimitExceeded) { _, exceeded in
+            if exceeded { paywall = .fileMinutes }
+        }
     }
 
     // MARK: - Masthead

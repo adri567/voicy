@@ -3,6 +3,9 @@ import SwiftUI
 struct TypeRailRow: View {
     let type: ModeType
     let isOn: Bool
+    /// Pro-gated and unavailable on the current plan. Renders a lock and a
+    /// muted style; the tap still fires so the caller can show the paywall.
+    var locked: Bool = false
     let onTap: () -> Void
 
     @State private var isHovering = false
@@ -18,6 +21,11 @@ struct TypeRailRow: View {
                     .font(DS.Font.sans(13, weight: .medium))
                     .foregroundStyle(isOn ? DS.Palette.paper : DS.Palette.ink2)
                 Spacer()
+                if locked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(DS.Palette.ink3)
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -32,6 +40,7 @@ struct TypeRailRow: View {
             )
         }
         .buttonStyle(.plain)
+        .opacity(locked ? 0.55 : 1)
         .onHover { isHovering = $0 }
     }
 }

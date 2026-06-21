@@ -123,15 +123,15 @@ extension Mode {
 }
 
 enum DefaultReel {
-    /// Initial set written on first launch when no stored reel exists.
-    /// Mirrors the design's default of 4 slots — Raw, two Translates, Email.
+    /// Initial set written on first launch when no stored reel exists. Three
+    /// slots — Raw (locked) + Translate + Email — so a Free user starts exactly
+    /// at their slot allowance (`PlanLimits.freeModeSlots`). Pro users can add
+    /// more from here.
     static func make(sourceCode: String) -> [Mode] {
-        let firstTarget  = sourceCode == "en" ? "de" : "en"
-        let secondTarget = sourceCode == "fr" ? "es" : "fr"
+        let firstTarget = sourceCode == "en" ? "de" : "en"
         return [
             Mode(type: .raw),
             Mode(type: .translate, targetCode: firstTarget),
-            Mode(type: .translate, targetCode: secondTarget),
             Mode(type: .email),
         ]
     }

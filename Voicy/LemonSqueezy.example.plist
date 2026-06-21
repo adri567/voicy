@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template for the bundled Lemon Squeezy config. Copy this file to
+  `LemonSqueezy.plist` (same folder) and fill in the real values from your
+  Lemon Squeezy store. `LemonSqueezy.plist` is gitignored; this template is not.
+
+  StoreID     — your store id (Settings → Stores).
+  VariantIDs  — the variant ids of the Voicy Pro product (monthly + yearly).
+                Used to reject license keys from other products.
+  CheckoutURL — the product/checkout page opened by "Get Voicy Pro".
+
+  Until LemonSqueezy.plist exists with a real StoreID (> 0), product
+  verification is skipped so the activation flow stays testable.
+-->
+<plist version="1.0">
+<dict>
+	<key>StoreID</key>
+	<integer>0</integer>
+	<key>VariantIDs</key>
+	<array>
+		<integer>0</integer>
+	</array>
+	<key>CheckoutURL</key>
+	<string>https://voicy.pro</string>
+</dict>
+</plist>

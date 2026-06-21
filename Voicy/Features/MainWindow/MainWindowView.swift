@@ -7,6 +7,7 @@ struct MainWindowView: View {
     @State private var selection: SidebarSection = .home
     @State private var sidebarMode: SidebarMode = .full
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(EntitlementStore.self) private var entitlement
 
     var body: some View {
         NavigationStack {
@@ -19,6 +20,10 @@ struct MainWindowView: View {
                 .frame(width: sidebarMode == .full ? 256 : 64)
 
                 detail
+                    // Rebuild the detail tree once when the plan flips, so every
+                    // Pro-gated section re-reads its limits live — the same
+                    // effect the old relaunch had, without restarting the app.
+                    .id(entitlement.isPro)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(DS.Palette.paper)
             }

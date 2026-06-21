@@ -1,3 +1,4 @@
+import FactoryKit
 import Foundation
 import Observation
 
@@ -6,6 +7,26 @@ final class HomeViewModel {
 
     /// Active history filter — bound from the FilterChips row.
     var filter: HistoryFilter = .all
+
+    /// Resolved via Factory; tests register mocks on the container. Using
+    /// `@Injected` (rather than a custom init with default args) keeps the suite
+    /// free of the actor-isolation mismatch that init-injection triggers in the
+    /// synthesized Swift Testing container.
+    @ObservationIgnored
+    @Injected(\.entitlementService) private var entitlement
+    @ObservationIgnored
+    @Injected(\.usageTrackingService) private var usageTracking
+
+    // MARK: - Word quota (Free tier)
+
+    /// Current rolling-7-day word allowance, or `nil` for Pro (unmetered) so the
+    /// View omits the card entirely. Read fresh on each access — the Home view's
+    /// `@Query` re-renders after every saved dictation, so the bar stays current
+    /// without the usage service needing to be observable.
+    var wordQuota: WordQuota? {
+        guard let limit = entitlement.weeklyWordLimit else { return nil }
+        return WordQuota(used: usageTracking.wordsUsedLast7Days(), limit: limit)
+    }
 
     /// Sliding window in days for the SwiftData query. Computed by the View at
     /// init time (because @Query needs the predicate then), exposed here so the

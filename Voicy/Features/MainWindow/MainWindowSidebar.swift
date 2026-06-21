@@ -116,6 +116,7 @@ struct MainWindowSidebar: View {
         case .transcribing, .correcting: return DS.Palette.highlight
         case .noModel:                   return DS.Palette.highlight
         case .noBrain:                   return DS.Palette.highlight
+        case .limitReached:              return DS.Palette.highlight
         }
     }
 
@@ -128,6 +129,7 @@ struct MainWindowSidebar: View {
         case .correcting:   return "Polishing…"
         case .noModel:      return "No voice model installed"
         case .noBrain:      return "No AI model installed"
+        case .limitReached: return "Weekly limit reached"
         }
     }
 }

@@ -86,6 +86,7 @@ struct BrainView: View {
     @State private var viewModel = BrainViewModel()
     @State private var pendingSetDefault: LLMModel?
     @State private var pendingRemove: LLMModel?
+    @State private var paywall: UpgradeContext?
 
     var body: some View {
         ScrollView {
@@ -104,6 +105,7 @@ struct BrainView: View {
             }
         }
         .onAppear { viewModel.refresh(registryKeys: viewModel.localRegistryKeys(from: models)) }
+        .paywall($paywall)
         .alert(
             "Activate model?",
             isPresented: Binding(
@@ -264,8 +266,10 @@ struct BrainView: View {
                         index: idx + 1,
                         first: idx == 0,
                         status: viewModel.status(of: model),
+                        planLocked: !viewModel.canUse(model),
                         onInstall: {
                             guard let key = model.registryKey else { return }
+                            guard viewModel.canUse(model) else { paywall = .brainModel; return }
                             Task { await viewModel.install(registryKey: key) }
                         },
                         onSetDefault: {
@@ -273,7 +277,8 @@ struct BrainView: View {
                         },
                         onRemove: {
                             pendingRemove = model
-                        }
+                        },
+                        onUpgrade: { paywall = .brainModel }
                     )
                 }
             }

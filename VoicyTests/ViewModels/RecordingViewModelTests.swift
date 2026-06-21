@@ -14,6 +14,10 @@ struct RecordingViewModelTests {
         Container.shared.transcriptionService.register { MockTranscriptionService() }
         Container.shared.textCorrectionService.register { NoopTextCorrectionService() }
         Container.shared.transcriptionHistoryService.register { NoopTranscriptionHistoryService() }
+        // Pro so the word limit never trips here and no usage is written to the
+        // shared defaults. Custom-mode editing also needs Pro to be accepted.
+        Container.shared.entitlementService.register { MockEntitlementService(plan: .pro) }
+        Container.shared.usageTrackingService.register { MockUsageTrackingService() }
         Container.shared.modeCycleService.register {
             MainActor.assumeIsolated { ModeCycleService() }
         }
@@ -39,6 +43,27 @@ struct RecordingViewModelTests {
         let viewModel = RecordingViewModel()
         await viewModel.onAppear()
         #expect(viewModel.state == .idle)
+    }
+
+    @Test("loadModel-Fehler wird an Telemetry gemeldet")
+    func loadModelFailureReportsTelemetry() async {
+        Container.shared.transcriptionService.register { FailingTranscriptionService() }
+        let spy = SpyTelemetryService()
+        let viewModel = RecordingViewModel(telemetry: spy)
+        await viewModel.onAppear()
+        #expect(spy.capturedStages().contains("loadModel"))
+    }
+
+    @Test("Transkriptions-Fehler wird an Telemetry gemeldet")
+    func transcribeFailureReportsTelemetry() async {
+        Container.shared.transcriptionService.register { FailingOnStopTranscriptionService() }
+        let spy = SpyTelemetryService()
+        let viewModel = RecordingViewModel(telemetry: spy)
+        await viewModel.onAppear()
+        await viewModel.toggleRecording()   // start
+        await viewModel.toggleRecording()   // stop → stopAndTranscribe throws
+        #expect(viewModel.state == .idle)
+        #expect(spy.capturedStages().contains("transcribe"))
     }
 
     @Test("Toggle startet Aufnahme")
@@ -146,5 +171,47 @@ struct RecordingViewModelTests {
 
         #expect(await spy.lastMode?.type == .custom)
         #expect(await spy.lastMode?.prompt == "Rewrite as a short Slack message.")
+    }
+
+    // MARK: - Word-limit gating (Free)
+
+    @Test("Free über Limit: Start wird geblockt, State limitReached")
+    func freeOverLimitBlocksStart() async {
+        let viewModel = RecordingViewModel(
+            entitlement: MockEntitlementService(plan: .free),
+            usageTracking: MockUsageTrackingService(words: PlanLimits.freeWeeklyWords)
+        )
+        await viewModel.onAppear()
+        await viewModel.toggleRecording()
+        #expect(viewModel.state == .limitReached)
+    }
+
+    @Test("Free unter Limit: bucht die diktierten Wörter")
+    func freeUnderLimitBooksWords() async {
+        let usage = MockUsageTrackingService(words: 10)
+        let viewModel = RecordingViewModel(
+            entitlement: MockEntitlementService(plan: .free),
+            usageTracking: usage
+        )
+        await viewModel.onAppear()
+        await viewModel.toggleRecording()
+        await viewModel.toggleRecording()
+        #expect(viewModel.state == .idle)
+        // MockTranscriptionService.mockText contributes its word count on top of
+        // the preexisting 10.
+        #expect(usage.words == 10 + MockTranscriptionService.mockText.wordCount)
+    }
+
+    @Test("Pro: bucht keine Wörter")
+    func proBooksNothing() async {
+        let usage = MockUsageTrackingService()
+        let viewModel = RecordingViewModel(
+            entitlement: MockEntitlementService(plan: .pro),
+            usageTracking: usage
+        )
+        await viewModel.onAppear()
+        await viewModel.toggleRecording()
+        await viewModel.toggleRecording()
+        #expect(usage.words == 0)
     }
 }

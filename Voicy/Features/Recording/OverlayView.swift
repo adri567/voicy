@@ -127,6 +127,9 @@ struct OverlayView: View {
 
         case .noBrain:
             errorAbovePill("No AI model installed")
+
+        case .limitReached:
+            errorAbovePill("Weekly limit reached")
         }
     }
 

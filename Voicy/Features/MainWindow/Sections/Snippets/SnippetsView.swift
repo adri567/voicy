@@ -6,6 +6,7 @@ struct SnippetsView: View {
     @State private var viewModel = SnippetsViewModel()
     @State private var editing: SnippetDraft?
     @State private var pendingDelete: SnippetDTO?
+    @State private var paywall: UpgradeContext?
 
     var body: some View {
         ScrollView {
@@ -24,6 +25,7 @@ struct SnippetsView: View {
             }
         }
         .task { await viewModel.reload() }
+        .paywall($paywall)
         .sheet(item: $editing) { draft in
             SnippetEditor(draft: draft) { result in
                 Task { await viewModel.persist(result); editing = nil }
@@ -105,6 +107,16 @@ struct SnippetsView: View {
         }
     }
 
+    /// Opens the editor for a new snippet, unless the Free snippet cap is
+    /// already reached — then it shows the paywall instead.
+    private func newSnippet() {
+        if viewModel.canCreateSnippet {
+            editing = SnippetDraft()
+        } else {
+            paywall = .snippets
+        }
+    }
+
     private var totalTriggers: Int {
         viewModel.snippets.reduce(0) { $0 + $1.triggers.count }
     }
@@ -125,7 +137,7 @@ struct SnippetsView: View {
 
                 Spacer()
 
-                Button(action: { editing = SnippetDraft() }) {
+                Button(action: { newSnippet() }) {
                     HStack(spacing: 8) {
                         Image(systemName: "plus")
                             .font(.system(size: 10, weight: .bold))

@@ -138,7 +138,8 @@ final class AppCoordinator {
 
         guard viewModel.state == .idle
               || viewModel.state == .noModel
-              || viewModel.state == .noBrain else { return }
+              || viewModel.state == .noBrain
+              || viewModel.state == .limitReached else { return }
 
         let now = Date()
         let isDoubleTap = lastFnReleaseTime

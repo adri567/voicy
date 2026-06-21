@@ -1,9 +1,10 @@
+import FactoryKit
 import Foundation
 import Testing
 @testable import Voicy
 
 @MainActor
-@Suite("HomeViewModel")
+@Suite("HomeViewModel", .serialized)
 struct HomeViewModelTests {
 
     private func entry(
@@ -104,5 +105,43 @@ struct HomeViewModelTests {
         #expect(buckets[0].entries.count == 1)
         #expect(buckets[1].title == "Yesterday")
         #expect(buckets[1].entries.count == 2)
+    }
+
+    // MARK: - Word quota
+
+    @Test("Free: wordQuota reflects the usage service and the plan limit")
+    func freeWordQuota() {
+        Container.shared.entitlementService.register { MockEntitlementService(plan: .free) }
+        Container.shared.usageTrackingService.register { MockUsageTrackingService(words: 750) }
+        let vm = HomeViewModel()
+        let quota = vm.wordQuota
+        #expect(quota?.used == 750)
+        #expect(quota?.limit == PlanLimits.freeWeeklyWords)
+        #expect(quota?.remaining == PlanLimits.freeWeeklyWords - 750)
+    }
+
+    @Test("Pro: no quota card (unmetered)")
+    func proNoQuota() {
+        Container.shared.entitlementService.register { MockEntitlementService(plan: .pro) }
+        Container.shared.usageTrackingService.register { MockUsageTrackingService(words: 750) }
+        let vm = HomeViewModel()
+        #expect(vm.wordQuota == nil)
+    }
+
+    @Test("WordQuota: fraction clamps and exhaustion/near-limit flags")
+    func quotaMath() {
+        let half = WordQuota(used: 1000, limit: 2000)
+        #expect(half.fraction == 0.5)
+        #expect(half.isNearLimit == false)
+        #expect(half.isExhausted == false)
+
+        let near = WordQuota(used: 1700, limit: 2000)
+        #expect(near.isNearLimit)
+        #expect(near.isExhausted == false)
+
+        let over = WordQuota(used: 2200, limit: 2000)
+        #expect(over.fraction == 1.0)   // clamped
+        #expect(over.remaining == 0)    // never negative
+        #expect(over.isExhausted)
     }
 }

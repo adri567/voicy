@@ -24,6 +24,11 @@ struct VoicyApp: App {
                 viewModel: appDelegate.coordinator.viewModel,
                 modeCycleService: appDelegate.coordinator.modeCycleService
             )
+            .environment(Container.shared.entitlementStore())
+            // Voicy ships a single light "paper" design (DS.Palette has no dark
+            // variants). Pin the light scheme so system-driven bits — text-field
+            // placeholders, carets, separators — don't invert under macOS dark mode.
+            .preferredColorScheme(.light)
         }
         .defaultSize(width: 1440, height: 860)
         .windowResizability(.contentMinSize)
@@ -32,6 +37,7 @@ struct VoicyApp: App {
 
         Window("Voicy — Onboarding", id: OnboardingWindowID.id) {
             OnboardingHostView()
+                .preferredColorScheme(.light)
         }
         .defaultSize(width: 1440, height: 860)
         .windowResizability(.contentMinSize)

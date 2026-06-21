@@ -7,9 +7,12 @@ struct SlotEditor: View {
     let sourceLanguage: AppLanguage
     let canRemove: Bool
     let isLocked: Bool
+    let allowsCustomMode: Bool
     let onChange: ((inout Mode) -> Void) -> Void
     let onMove: (Int) -> Void
     let onRemove: () -> Void
+    /// Called when a Free user taps the (Pro-only) Custom type row.
+    let onCustomLocked: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -84,10 +87,15 @@ struct SlotEditor: View {
                 LockedRawNotice()
             } else {
                 ForEach(ModeType.allCases, id: \.self) { type in
-                    TypeRailRow(type: type, isOn: mode.type == type) {
-                        onChange { slot in
-                            slot.type = type
-                            applyDefaults(to: &slot, for: type)
+                    let locked = type == .custom && !allowsCustomMode
+                    TypeRailRow(type: type, isOn: mode.type == type, locked: locked) {
+                        if locked {
+                            onCustomLocked()
+                        } else {
+                            onChange { slot in
+                                slot.type = type
+                                applyDefaults(to: &slot, for: type)
+                            }
                         }
                     }
                 }

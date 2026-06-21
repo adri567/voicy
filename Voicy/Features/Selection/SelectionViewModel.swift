@@ -29,6 +29,12 @@ final class SelectionViewModel {
     @ObservationIgnored
     var onSelectionChange: (() -> Void)?
 
+    /// Called when an action is blocked by the Free word limit so the owner
+    /// (AppCoordinator) can surface the paywall. Falls back to a brief failure
+    /// hint when unset.
+    @ObservationIgnored
+    var onUpgradeNeeded: (() -> Void)?
+
     @ObservationIgnored
     private let selectionService: any SelectionService
     @ObservationIgnored
@@ -36,7 +42,19 @@ final class SelectionViewModel {
     @ObservationIgnored
     private let pasteService: any PasteService
     @ObservationIgnored
-    private let proofreadTimeout: Duration
+    private let entitlement: any EntitlementService
+    @ObservationIgnored
+    private let usageTracking: any UsageTrackingService
+    @ObservationIgnored
+    private let telemetry: any TelemetryService
+    /// Caps the LLM generation step. Model loading is timed separately so a cold
+    /// 2GB+ brain can't trip this.
+    @ObservationIgnored
+    private let inferenceTimeout: Duration
+    /// Generous cap on loading the brain into memory (only hit by a click that
+    /// lands before the launch warm-up finishes).
+    @ObservationIgnored
+    private let modelLoadTimeout: Duration
 
     @ObservationIgnored
     private var observationTask: Task<Void, Never>?
@@ -60,12 +78,20 @@ final class SelectionViewModel {
         selectionService: any SelectionService = Container.shared.selectionService(),
         correctionService: any TextCorrectionService = Container.shared.textCorrectionService(),
         pasteService: any PasteService = Container.shared.pasteService(),
-        proofreadTimeout: Duration = .seconds(30)
+        entitlement: any EntitlementService = Container.shared.entitlementService(),
+        usageTracking: any UsageTrackingService = Container.shared.usageTrackingService(),
+        telemetry: any TelemetryService = Container.shared.telemetryService(),
+        inferenceTimeout: Duration = .seconds(30),
+        modelLoadTimeout: Duration = .seconds(120)
     ) {
         self.selectionService = selectionService
         self.correctionService = correctionService
         self.pasteService = pasteService
-        self.proofreadTimeout = proofreadTimeout
+        self.entitlement = entitlement
+        self.usageTracking = usageTracking
+        self.telemetry = telemetry
+        self.inferenceTimeout = inferenceTimeout
+        self.modelLoadTimeout = modelLoadTimeout
     }
 
     /// Starts the service and begins consuming its selection stream. Idempotent.
@@ -105,9 +131,18 @@ final class SelectionViewModel {
     /// or no brain is installed (the latter shows a brief failure hint).
     func run(_ action: SelectionAction) {
         guard phase == .idle else { return }
+        telemetry.breadcrumb("selection \(String(describing: action))", category: .selection)
 
         let original = selectionService.currentSelection().selectedText
         guard !original.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        // Proofread/rephrase draw from the same rolling word budget as live
+        // dictation. A tapped-out Free user gets the paywall instead.
+        if wordLimitReached {
+            onUpgradeNeeded?()
+            fail(action)
+            return
+        }
 
         guard correctionService.ensureModelAvailable() else {
             fail(action)
@@ -117,11 +152,18 @@ final class SelectionViewModel {
         runningAction = action
         setPhase(.working)
         let service = correctionService
-        let timeout = proofreadTimeout
+        let inferenceTimeout = inferenceTimeout
+        let loadTimeout = modelLoadTimeout
         actionTask = Task { [weak self] in
             do {
-                let corrected = try await withTimeout(timeout) {
-                    try await Self.transform(original, action: action, using: service)
+                // Load the brain *outside* the inference timeout — a cold 2GB+
+                // model (or one still warming up from launch) can take longer
+                // than the generation itself, and that wait must not be counted
+                // as a failure. Sharing the in-flight launch warm-up makes this a
+                // cheap await once it's resident.
+                try await withTimeout(loadTimeout) { try await service.loadModel() }
+                let corrected = try await withTimeout(inferenceTimeout) {
+                    try await Self.apply(action, to: original, using: service)
                 }
                 guard let self, !Task.isCancelled else { return }
                 self.applyCorrection(corrected, original: original)
@@ -129,27 +171,13 @@ final class SelectionViewModel {
                 // Superseded/torn down — leave state as the canceller set it.
             } catch {
                 Log.app.error("Selection \(String(describing: action), privacy: .public) failed: \(String(describing: error), privacy: .public)")
+                self?.telemetry.capture(error, context: ["stage": "selection", "action": String(describing: action)])
                 self?.fail(action)
             }
         }
     }
 
     // MARK: - Private
-
-    /// Runs the action's transform, lazily loading the brain into memory if it's
-    /// on disk but not yet resident (mirrors `RecordingViewModel.runCorrection`).
-    private nonisolated static func transform(
-        _ text: String,
-        action: SelectionAction,
-        using service: any TextCorrectionService
-    ) async throws -> String {
-        do {
-            return try await apply(action, to: text, using: service)
-        } catch TextCorrectionError.modelNotLoaded {
-            try await service.loadModel()
-            return try await apply(action, to: text, using: service)
-        }
-    }
 
     private nonisolated static func apply(
         _ action: SelectionAction,
@@ -171,7 +199,18 @@ final class SelectionViewModel {
         if !selectionService.setSelectedText(corrected) {
             pasteService.paste(corrected)
         }
+        // Book the written words against the rolling window (Free only).
+        if entitlement.weeklyWordLimit != nil {
+            usageTracking.recordWords(corrected.wordCount)
+        }
         finishIdle()
+    }
+
+    /// True when a Free user has reached the rolling weekly word allowance.
+    /// Pro (a `nil` limit) never trips this.
+    private var wordLimitReached: Bool {
+        guard let limit = entitlement.weeklyWordLimit else { return false }
+        return usageTracking.wordsUsedLast7Days() >= limit
     }
 
     private func fail(_ action: SelectionAction) {

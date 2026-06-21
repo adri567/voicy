@@ -5,9 +5,14 @@ struct LLMRow: View {
     let index: Int
     let first: Bool
     let status: BrainViewModel.Status?
+    /// Local model that the current plan doesn't include (Free + non-standard
+    /// brain). Renders a Pro lock instead of the Install button.
+    var planLocked: Bool = false
     let onInstall: () -> Void
     let onSetDefault: () -> Void
     let onRemove: () -> Void
+    /// Tapped the Pro lock on a plan-locked model — caller shows the paywall.
+    var onUpgrade: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 0) {
@@ -77,6 +82,8 @@ struct LLMRow: View {
 
             if model.location == .cloud {
                 cloudComingSoon
+            } else if planLocked {
+                proLocked
             } else if let status {
                 liveActionBlock(status: status)
             } else {
@@ -120,6 +127,22 @@ struct LLMRow: View {
         }
     }
 
+    private var proLocked: some View {
+        Button(action: onUpgrade) {
+            HStack(spacing: 8) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 10, weight: .bold))
+                Text("Pro")
+                    .font(DS.Font.sans(11, weight: .semibold))
+            }
+            .foregroundStyle(DS.Palette.paper)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(DS.Palette.accent, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
     private var cloudComingSoon: some View {
         Button("Notify me") {
             // TODO(brain-notify): cloud-model opt-in flow not implemented
@@ -136,6 +159,9 @@ struct LLMRow: View {
         let tuple: (String, Bool, Bool) = {
             if model.location == .cloud {
                 return ("Coming soon", false, false)
+            }
+            if planLocked {
+                return ("Pro", false, true)
             }
             switch status {
             case .active:        return ("In use",      false, true)

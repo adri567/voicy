@@ -22,10 +22,16 @@ enum ProofreadOutcome: Sendable {
 final class StubTextCorrectionService: TextCorrectionService {
     private nonisolated let available: Bool
     private nonisolated let outcome: ProofreadOutcome
+    private nonisolated let loadDelay: Duration
 
-    nonisolated init(available: Bool = true, outcome: ProofreadOutcome = .success("corrected")) {
+    nonisolated init(
+        available: Bool = true,
+        outcome: ProofreadOutcome = .success("corrected"),
+        loadDelay: Duration = .zero
+    ) {
         self.available = available
         self.outcome = outcome
+        self.loadDelay = loadDelay
     }
 
     nonisolated func proofread(_ text: String) async throws -> String {
@@ -49,7 +55,9 @@ final class StubTextCorrectionService: TextCorrectionService {
 
     nonisolated func ensureModelAvailable() -> Bool { available }
     nonisolated func isModelInstalled() -> Bool { available }
-    nonisolated func loadModel(onProgress: (@Sendable (Double) -> Void)?) async throws {}
+    nonisolated func loadModel(onProgress: (@Sendable (Double) -> Void)?) async throws {
+        if loadDelay > .zero { try await Task.sleep(for: loadDelay) }
+    }
     nonisolated func correct(_ text: String, mode: Mode, sourceLanguage: AppLanguage) async throws -> String { text }
     nonisolated func installModel(progress: @escaping @Sendable (DownloadPhase) -> Void) async throws {}
     nonisolated func removeModel() async throws {}
