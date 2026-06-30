@@ -124,6 +124,8 @@ struct BrainScreen: View {
                     BrainCardView(
                         brain: brain,
                         picked: state.brainID == brain.id,
+                        recommended: state.recommendedBrainID == brain.id,
+                        availability: brain.isBuiltIn ? state.appleBrainAvailability : nil,
                         download: state.brainID == brain.id ? state.brainState : nil,
                         onPick: {
                             state.selectBrain(brain)

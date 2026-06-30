@@ -38,19 +38,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Container.shared.entitlementStore().refresh()
         }
 
-        if !onboardingDone {
-            // Close the auto-opened MainWindow and bring Onboarding to the
-            // front. SwiftUI opens the first declared Window on launch, which
-            // is MainWindow — we swap it for Onboarding until setup is done.
-            DispatchQueue.main.async {
+        // SwiftUI presents the MainWindow on launch (see its
+        // `.defaultLaunchBehavior(.presented)`). When onboarding isn't done yet
+        // we swap it for the Onboarding window; otherwise we just bring it to
+        // the front and focus the app so the window — not only the menu-bar
+        // item — is what greets the user.
+        DispatchQueue.main.async {
+            if onboardingDone {
+                NSApp.windows
+                    .first(where: { $0.identifier?.rawValue == MainWindowID.id })?
+                    .makeKeyAndOrderFront(nil)
+            } else {
                 NSApp.windows
                     .first(where: { $0.identifier?.rawValue == MainWindowID.id })?
                     .close()
                 NSApp.windows
                     .first(where: { $0.identifier?.rawValue == OnboardingWindowID.id })?
                     .makeKeyAndOrderFront(nil)
-                NSApp.activate(ignoringOtherApps: true)
             }
+            NSApp.activate(ignoringOtherApps: true)
         }
     }
 

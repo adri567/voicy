@@ -33,6 +33,10 @@ struct VoicyApp: App {
         .defaultSize(width: 1440, height: 860)
         .windowResizability(.contentMinSize)
         .windowStyle(.hiddenTitleBar)
+        // Open the main window on every launch instead of relying on window
+        // restoration — otherwise quitting with the window closed leaves only
+        // the menu-bar item on the next launch (which can hide under the notch).
+        .defaultLaunchBehavior(.presented)
         .modelContainer(Container.shared.modelContainer())
 
         Window("Voicy — Onboarding", id: OnboardingWindowID.id) {

@@ -27,6 +27,13 @@ enum OnboardingCatalog {
     ]
 
     static let brains: [OnboardingBrain] = [
+        .init(id: "apple",
+              size: "Built-in", context: "4k",
+              speed: "Fast", quality: 83,
+              body: "Apple's on-device model — ships with macOS, nothing to download. Needs Apple Intelligence switched on in System Settings.",
+              recommended: false,
+              registryKey: BrainBackend.appleRegistryKey,
+              isBuiltIn: true),
         .init(id: "gemma2b",
               size: "1.4 GB", context: "8k",
               speed: "Realtime", quality: 78,

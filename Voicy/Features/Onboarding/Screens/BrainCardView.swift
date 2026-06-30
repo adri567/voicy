@@ -3,12 +3,18 @@ import SwiftUI
 struct BrainCardView: View {
     let brain: OnboardingBrain
     let picked: Bool
+    /// Whether this card carries the dynamic "Recommended" badge.
+    let recommended: Bool
+    /// Availability of the built-in brain; `nil` for downloadable MLX brains.
+    let availability: BrainAvailability?
     /// Download state for *this* card, or `nil` if it isn't the selected one.
     let download: DownloadUIState?
     let onPick: () -> Void
 
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
-        Button(action: onPick) {
+        Button(action: primaryTap) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 14) {
                     radio
@@ -41,6 +47,17 @@ struct BrainCardView: View {
                             .background(DS.Palette.accent2, in: Capsule())
                     }
                 }
+                if case .unavailable(let reason) = availability {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.circle")
+                            .accessibilityHidden(true)
+                        Text(reason)
+                        Spacer(minLength: 0)
+                        Text("Open System Settings →")
+                    }
+                    .font(DS.Font.mono(10))
+                    .foregroundStyle(DS.Palette.ink3)
+                }
                 if let phase = download?.phase {
                     OnboardingProgressBar(phase: phase)
                     HStack {
@@ -68,7 +85,7 @@ struct BrainCardView: View {
             .shadow(color: .black.opacity(picked ? 0.08 : 0), radius: 18, y: 6)
             .contentShape(RoundedRectangle(cornerRadius: 12))
             .overlay(alignment: .topTrailing) {
-                if brain.recommended {
+                if recommended {
                     Text("Recommended")
                         .font(DS.Font.mono(9))
                         .tracking(1.0)
@@ -82,6 +99,16 @@ struct BrainCardView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    /// The built-in brain can't be picked while Apple Intelligence is off —
+    /// route the tap into System Settings instead of selecting it.
+    private func primaryTap() {
+        if case .unavailable = availability {
+            openURL(URL(string: "x-apple.systempreferences:")!)
+        } else {
+            onPick()
+        }
     }
 
     private var radio: some View {

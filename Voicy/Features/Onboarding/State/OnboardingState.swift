@@ -97,6 +97,8 @@ final class OnboardingState {
 
     var brainPrimaryTitle: String {
         guard let brain = pickedBrain else { return "Continue without a brain →" }
+        // The built-in brain has nothing to download — selecting it is enough.
+        if brain.isBuiltIn { return "Continue →" }
         switch brainState {
         case .ready:             return "Continue →"
         case .inProgress(let p): return "Downloading… \(p.shortLabel)"
@@ -111,7 +113,9 @@ final class OnboardingState {
     /// Primary button action for the brain step: continue when nothing is
     /// picked or it's ready, otherwise start the download for the picked brain.
     func brainPrimaryAction() {
-        guard pickedBrain != nil else { next(); return }
+        guard let brain = pickedBrain else { next(); return }
+        // Built-in brain: nothing to fetch, just move on.
+        if brain.isBuiltIn { next(); return }
         if brainState.isReady { next() } else { downloadSelectedBrain() }
     }
 
@@ -120,6 +124,7 @@ final class OnboardingState {
         guard let brain = pickedBrain else {
             return "You can install one later in Settings → Brain"
         }
+        if brain.isBuiltIn { return "\(brain.name) · built-in, ready" }
         switch brainState {
         case .inProgress(let p): return "\(brain.name) · \(p.shortLabel)"
         case .ready:             return "\(brain.name) · ready"
@@ -222,17 +227,41 @@ final class OnboardingState {
         }
     }
 
+    // MARK: - Apple built-in brain
+
+    /// Live availability of Apple's built-in brain (Apple Intelligence on +
+    /// supported device). Drives the Apple card's state and the recommendation.
+    var appleBrainAvailability: BrainAvailability {
+        FoundationModelsTextCorrectionService.availability()
+    }
+
+    /// Brain to badge as "Recommended" and preselect: Apple's built-in model
+    /// when the device can run it (zero download, the friendliest default),
+    /// otherwise the catalog's static pick.
+    var recommendedBrainID: String? {
+        if appleBrainAvailability.isAvailable,
+           let apple = OnboardingCatalog.brains.first(where: \.isBuiltIn) {
+            return apple.id
+        }
+        return OnboardingCatalog.brains.first(where: \.recommended)?.id
+    }
+
     // MARK: - Brain selection & download
 
-    /// Selects a brain without downloading anything. Picks the radio and
-    /// reflects whether it's already on disk. The download only happens later
+    /// Selects a brain without downloading anything. For MLX brains it reflects
+    /// whether the model is already on disk; for the built-in brain it reflects
+    /// Apple Intelligence availability. The download (MLX only) happens later
     /// via `downloadSelectedBrain()` (the footer button).
     func selectBrain(_ brain: OnboardingBrain) {
         brainDownloadTask?.cancel()
         brainID = brain.id
-        brainState = MLXTextCorrectionService.isInstalled(registryKey: brain.registryKey)
-            ? .ready
-            : .idle
+        if brain.isBuiltIn {
+            brainState = appleBrainAvailability.isAvailable ? .ready : .idle
+        } else {
+            brainState = MLXTextCorrectionService.isInstalled(registryKey: brain.registryKey)
+                ? .ready
+                : .idle
+        }
     }
 
     /// Downloads the currently selected brain. Triggered explicitly by the
@@ -373,8 +402,16 @@ final class OnboardingState {
             modelState = .ready
         }
         // If a previously-selected brain is already on disk, mirror that.
-        if let brain = pickedBrain,
+        if let brain = pickedBrain, !brain.isBuiltIn,
            MLXTextCorrectionService.isInstalled(registryKey: brain.registryKey) {
+            brainState = .ready
+        }
+        // Default the brain step to Apple's built-in model when the device can
+        // run it — zero download, the friendliest starting point. Only when the
+        // user hasn't already got a brain selected.
+        if brainID == nil, appleBrainAvailability.isAvailable,
+           let apple = OnboardingCatalog.brains.first(where: \.isBuiltIn) {
+            brainID = apple.id
             brainState = .ready
         }
     }
