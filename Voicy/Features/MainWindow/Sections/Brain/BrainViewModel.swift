@@ -28,6 +28,10 @@ final class BrainViewModel {
         case downloading(DownloadPhase)
         case installed     // on disk, not currently active
         case active        // on disk and currently loaded
+        /// Built-in brain (Apple Foundation Models) that exists but can't be
+        /// used right now — Apple Intelligence off, unsupported device, etc.
+        /// `reason` is a short user-facing explanation.
+        case unavailable(reason: String)
     }
 
     /// Internal-settable (not `private(set)`) so unit tests can drive the
@@ -39,20 +43,41 @@ final class BrainViewModel {
     var filter: LLMFilter = .all
 
     func refresh(registryKeys: [String]) {
-        let active = MLXTextCorrectionService.activeRegistryKey
+        let backend = BrainBackend.current
+        let mlxActive = MLXTextCorrectionService.activeRegistryKey
         for key in registryKeys {
-            let installed = MLXTextCorrectionService.isInstalled(registryKey: key)
-            if !installed {
-                statuses[key] = .notInstalled
-            } else if key == active {
-                statuses[key] = .active
+            if key == BrainBackend.appleRegistryKey {
+                statuses[key] = appleStatus(backend: backend)
             } else {
-                statuses[key] = .installed
+                let installed = MLXTextCorrectionService.isInstalled(registryKey: key)
+                if !installed {
+                    statuses[key] = .notInstalled
+                } else if backend == .mlx, key == mlxActive {
+                    statuses[key] = .active
+                } else {
+                    // Installed, but not the active brain — either a non-active
+                    // MLX model or any MLX model while Apple's brain is active.
+                    statuses[key] = .installed
+                }
             }
         }
     }
 
+    /// Status for Apple's built-in brain: it's never downloaded, so it's
+    /// `.active` when selected, `.installed` when available-but-not-selected,
+    /// and `.unavailable` when Apple Intelligence can't serve it.
+    private func appleStatus(backend: BrainBackend) -> Status {
+        switch FoundationModelsTextCorrectionService.availability() {
+        case .available:
+            return backend == .appleFoundationModels ? .active : .installed
+        case .unavailable(let reason):
+            return .unavailable(reason: reason)
+        }
+    }
+
     func install(registryKey: String) async {
+        // The built-in Apple brain has nothing to download.
+        guard registryKey != BrainBackend.appleRegistryKey else { return }
         statuses[registryKey] = .downloading(.preparing)
         lastError = nil
         telemetry.breadcrumb("brain install \(registryKey)", category: .brain)
@@ -60,7 +85,7 @@ final class BrainViewModel {
             try await MLXTextCorrectionService.install(registryKey: registryKey) { phase in
                 Task { @MainActor in self.updateProgress(key: registryKey, phase: phase) }
             }
-            let isActive = registryKey == MLXTextCorrectionService.activeRegistryKey
+            let isActive = BrainBackend.current == .mlx && registryKey == MLXTextCorrectionService.activeRegistryKey
             statuses[registryKey] = isActive ? .active : .installed
         } catch {
             statuses[registryKey] = .notInstalled
@@ -79,6 +104,8 @@ final class BrainViewModel {
     }
 
     func remove(registryKey: String) async {
+        // The built-in Apple brain can't be removed — it ships with the OS.
+        guard registryKey != BrainBackend.appleRegistryKey else { return }
         lastError = nil
         telemetry.breadcrumb("brain remove \(registryKey)", category: .brain)
         do {
@@ -104,8 +131,19 @@ final class BrainViewModel {
     }
 
     func activeModel(in models: [LLMModel]) -> LLMModel {
-        let active = MLXTextCorrectionService.activeRegistryKey
+        let active = activeBrainKey
         return models.first { $0.registryKey == active } ?? models[0]
+    }
+
+    /// Registry key of the brain currently driving correction — Apple's sentinel
+    /// key when the Foundation Models backend is active, otherwise the resolved
+    /// MLX key. The MLX active key falls back to a default and can't represent
+    /// "Apple is selected", so the backend has to be consulted first.
+    private var activeBrainKey: String {
+        switch BrainBackend.current {
+        case .appleFoundationModels: return BrainBackend.appleRegistryKey
+        case .mlx:                   return MLXTextCorrectionService.activeRegistryKey
+        }
     }
 
     func localRegistryKeys(from models: [LLMModel]) -> [String] {
@@ -131,6 +169,7 @@ final class BrainViewModel {
         case .installed:    return 1
         case .downloading:  return 2
         case .notInstalled, .none: return 3
+        case .unavailable:  return 3
         }
     }
 }

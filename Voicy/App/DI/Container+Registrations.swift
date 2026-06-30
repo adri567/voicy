@@ -48,11 +48,32 @@ extension Container {
             .singleton
     }
 
-    var textCorrectionService: Factory<any TextCorrectionService> {
+    /// Backend-specific singletons. The active brain selects which one the
+    /// shared `textCorrectionService` resolves to — mirroring how the
+    /// transcription engines are registered above. MLX runs downloaded
+    /// Gemma/Qwen models; Foundation Models wraps Apple's built-in on-device
+    /// model (zero download).
+    var mlxTextCorrectionService: Factory<MLXTextCorrectionService> {
         Factory(self) {
             MainActor.assumeIsolated { MLXTextCorrectionService() }
         }
         .singleton
+    }
+
+    var foundationModelsTextCorrectionService: Factory<FoundationModelsTextCorrectionService> {
+        Factory(self) { FoundationModelsTextCorrectionService() }
+            .singleton
+    }
+
+    var textCorrectionService: Factory<any TextCorrectionService> {
+        Factory(self) {
+            switch BrainBackend.current {
+            case .mlx:
+                Container.shared.mlxTextCorrectionService()
+            case .appleFoundationModels:
+                Container.shared.foundationModelsTextCorrectionService()
+            }
+        }
     }
 
     var modelContainer: Factory<ModelContainer> {

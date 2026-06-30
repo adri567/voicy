@@ -28,10 +28,11 @@ struct EntitlementServiceTests {
         #expect(e.allowsCustomMode)
     }
 
-    @Test("Free: only the standard brain is allowed")
+    @Test("Free: the standard brain and Apple's built-in brain are allowed")
     func freeBrainGate() {
         let e = MockEntitlementService(plan: .free)
         #expect(e.canUseBrain(registryKey: PlanLimits.freeBrainRegistryKey))
+        #expect(e.canUseBrain(registryKey: BrainBackend.appleRegistryKey))
         #expect(e.canUseBrain(registryKey: "gemma4_e4b_it_4bit") == false)
         #expect(e.canUseBrain(registryKey: "qwen2_5_7b") == false)
     }

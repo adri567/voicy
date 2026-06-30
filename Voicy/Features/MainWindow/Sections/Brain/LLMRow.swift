@@ -14,6 +14,8 @@ struct LLMRow: View {
     /// Tapped the Pro lock on a plan-locked model — caller shows the paywall.
     var onUpgrade: () -> Void = {}
 
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         VStack(spacing: 0) {
             if !first {
@@ -34,6 +36,8 @@ struct LLMRow: View {
                             .tracking(-0.3)
                             .foregroundStyle(DS.Palette.ink)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .layoutPriority(1)
                         if let tier = model.tier {
                             Text(tier).dsTag()
                         } else {
@@ -96,8 +100,14 @@ struct LLMRow: View {
     private func liveActionBlock(status: BrainViewModel.Status) -> some View {
         switch status {
         case .active:
-            MetaLabel(text: "Loaded in RAM")
-            TrashButton(onTap: onRemove)
+            // The built-in Apple model isn't loaded into *our* RAM and can't be
+            // deleted, so it shows neither the RAM label nor a trash button.
+            if model.isBuiltIn {
+                MetaLabel(text: "Active")
+            } else {
+                MetaLabel(text: "Loaded in RAM")
+                TrashButton(onTap: onRemove)
+            }
         case .installed:
             Button("Set as default", action: onSetDefault)
                 .buttonStyle(.plain)
@@ -106,7 +116,9 @@ struct LLMRow: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .overlay(Capsule().stroke(DS.Palette.ink, lineWidth: 1))
-            TrashButton(onTap: onRemove)
+            if !model.isBuiltIn {
+                TrashButton(onTap: onRemove)
+            }
         case .downloading(let phase):
             ProgressBar(phase: phase)
                 .frame(width: 140)
@@ -124,6 +136,30 @@ struct LLMRow: View {
                 .background(DS.Palette.ink, in: Capsule())
             }
             .buttonStyle(.plain)
+        case .unavailable(let reason):
+            unavailableBlock(reason: reason)
+        }
+    }
+
+    /// Built-in brain that exists but can't serve requests right now (Apple
+    /// Intelligence off / unsupported device). Shows the reason and a shortcut
+    /// into System Settings instead of an Install button.
+    private func unavailableBlock(reason: String) -> some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            Text(reason)
+                .font(DS.Font.sans(11))
+                .foregroundStyle(DS.Palette.ink3)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 140, alignment: .trailing)
+            Button("System Settings") {
+                openURL(URL(string: "x-apple.systempreferences:")!)
+            }
+            .buttonStyle(.plain)
+            .font(DS.Font.sans(11, weight: .medium))
+            .foregroundStyle(DS.Palette.ink)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .overlay(Capsule().stroke(DS.Palette.ruleSoft, lineWidth: 1))
         }
     }
 
@@ -165,9 +201,10 @@ struct LLMRow: View {
             }
             switch status {
             case .active:        return ("In use",      false, true)
-            case .installed:     return ("Installed",   false, false)
+            case .installed:     return (model.isBuiltIn ? "Built-in" : "Installed", false, false)
             case .downloading:   return ("Downloading", true,  false)
             case .notInstalled:  return ("Available",   false, false)
+            case .unavailable:   return ("Unavailable", false, false)
             case .none:          return ("Available",   false, false)
             }
         }()

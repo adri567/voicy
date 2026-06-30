@@ -21,7 +21,15 @@ nonisolated enum PlanLimits {
     /// File-transcription minutes per calendar month on Free.
     static let freeMonthlyFileMinutes = 30
 
-    /// The only brain a Free user may install/use: Quill (Gemma 4 E2B).
+    /// The bundled MLX brain a Free user gets by default: Quill (Gemma 4 E2B).
     /// Matches the registry key in `ModelCatalog.brains`.
     static let freeBrainRegistryKey = "gemma4_e2b_it_4bit"
+
+    /// Every brain a Free user may select without Pro. Apple's built-in
+    /// on-device model is free (zero download, part of the OS); Quill remains
+    /// the bundled MLX free brain. Pro unlocks all the heavier local brains.
+    static let freeBrainRegistryKeys: Set<String> = [
+        freeBrainRegistryKey,
+        BrainBackend.appleRegistryKey,
+    ]
 }

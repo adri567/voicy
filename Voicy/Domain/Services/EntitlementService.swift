@@ -23,9 +23,10 @@ protocol EntitlementService: Sendable {
 extension EntitlementService {
     var isPro: Bool { plan == .pro }
 
-    /// Free installs/uses only the standard brain (Quill). Pro: any brain.
+    /// Free uses the bundled standard brain (Quill) or Apple's built-in
+    /// on-device model; Pro unlocks any brain.
     func canUseBrain(registryKey: String) -> Bool {
-        isPro || registryKey == PlanLimits.freeBrainRegistryKey
+        isPro || PlanLimits.freeBrainRegistryKeys.contains(registryKey)
     }
 
     /// Custom-prompt mode is Pro-only — the strongest upgrade hook.

@@ -1,8 +1,8 @@
 import Testing
 @testable import Voicy
 
-@Suite("MLXTextCorrectionService — prompts")
-struct MLXPromptTests {
+@Suite("CorrectionPrompts")
+struct CorrectionPromptsTests {
 
     private var german: AppLanguage { LanguageCatalog.language(for: "de") }
 
@@ -10,19 +10,19 @@ struct MLXPromptTests {
 
     @Test("stripReasoning keeps only the text after </think>")
     func stripReasoningRemovesBlock() {
-        #expect(MLXTextCorrectionService.stripReasoning("<think>analysis</think>Result") == "Result")
+        #expect(CorrectionPrompts.stripReasoning("<think>analysis</think>Result") == "Result")
     }
 
     @Test("stripReasoning leaves text without a think tag unchanged")
     func stripReasoningNoTag() {
-        #expect(MLXTextCorrectionService.stripReasoning("Plain answer") == "Plain answer")
+        #expect(CorrectionPrompts.stripReasoning("Plain answer") == "Plain answer")
     }
 
     // MARK: - wrappedInput
 
     @Test("translate input is wrapped in TRANSLATE tags")
     func wrapTranslate() {
-        let wrapped = MLXTextCorrectionService.wrappedInput(
+        let wrapped = CorrectionPrompts.wrappedInput(
             for: Mode(type: .translate, targetCode: "en"),
             transcript: "hallo"
         )
@@ -32,21 +32,21 @@ struct MLXPromptTests {
 
     @Test("developer input is wrapped in INPUT tags")
     func wrapDeveloper() {
-        let wrapped = MLXTextCorrectionService.wrappedInput(for: Mode(type: .developer), transcript: "fix bug")
+        let wrapped = CorrectionPrompts.wrappedInput(for: Mode(type: .developer), transcript: "fix bug")
         #expect(wrapped.contains("<INPUT>"))
     }
 
     @Test("custom with spliced {{transcript}} returns the nudge message")
     func wrapCustomSpliced() {
         let mode = Mode(type: .custom, prompt: "Rewrite this: {{transcript}}")
-        let wrapped = MLXTextCorrectionService.wrappedInput(for: mode, transcript: "hi")
+        let wrapped = CorrectionPrompts.wrappedInput(for: mode, transcript: "hi")
         #expect(wrapped == "Follow the instructions above on the spliced transcript.")
     }
 
     @Test("custom without placeholder wraps the transcript in INPUT tags")
     func wrapCustomPlain() {
         let mode = Mode(type: .custom, prompt: "Make it formal")
-        let wrapped = MLXTextCorrectionService.wrappedInput(for: mode, transcript: "hi")
+        let wrapped = CorrectionPrompts.wrappedInput(for: mode, transcript: "hi")
         #expect(wrapped.contains("<INPUT>"))
     }
 
@@ -54,7 +54,7 @@ struct MLXPromptTests {
 
     @Test("translate prompt locks the target language")
     func systemPromptTranslate() {
-        let prompt = MLXTextCorrectionService.systemPrompt(
+        let prompt = CorrectionPrompts.systemPrompt(
             for: Mode(type: .translate, targetCode: "en"),
             source: german
         )
@@ -64,19 +64,27 @@ struct MLXPromptTests {
 
     @Test("developer prompt targets technical English")
     func systemPromptDeveloper() {
-        let prompt = MLXTextCorrectionService.systemPrompt(for: Mode(type: .developer), source: german)
+        let prompt = CorrectionPrompts.systemPrompt(for: Mode(type: .developer), source: german)
         #expect(prompt.contains("technical English"))
     }
 
     @Test("email prompt enforces greeting and sign-off structure")
     func systemPromptEmail() {
-        let prompt = MLXTextCorrectionService.systemPrompt(for: Mode(type: .email), source: german)
+        let prompt = CorrectionPrompts.systemPrompt(for: Mode(type: .email), source: german)
         #expect(prompt.lowercased().contains("greeting"))
         #expect(prompt.lowercased().contains("sign-off"))
     }
 
     @Test("raw prompt is empty — no LLM call expected")
     func systemPromptRaw() {
-        #expect(MLXTextCorrectionService.systemPrompt(for: Mode(type: .raw), source: german).isEmpty)
+        #expect(CorrectionPrompts.systemPrompt(for: Mode(type: .raw), source: german).isEmpty)
+    }
+
+    // MARK: - selection-action prompts
+
+    @Test("proofread and rephrase prompts pin the input's own language")
+    func selectionPromptsLockLanguage() {
+        #expect(CorrectionPrompts.proofreadSystemPrompt.contains("same language as the input"))
+        #expect(CorrectionPrompts.rephraseSystemPrompt.contains("same language as the input"))
     }
 }

@@ -23,6 +23,10 @@ struct LLMModel: Identifiable {
     /// Tier tag for local models; nil for cloud (which shows its family label).
     var tier: String? { credit?.tier }
 
+    /// Apple's built-in on-device brain: ships with the OS, so it's never
+    /// downloaded and can't be removed. Drives the no-install/no-trash UI.
+    var isBuiltIn: Bool { registryKey == BrainBackend.appleRegistryKey }
+
     var latencyNumber: String {
         switch speed {
         case "Real-time": "300"

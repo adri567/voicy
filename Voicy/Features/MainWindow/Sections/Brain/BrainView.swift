@@ -4,6 +4,19 @@ struct BrainView: View {
 
     private let models: [LLMModel] = [
         LLMModel(
+            id: "apple-fm",
+            registryKey: BrainBackend.appleRegistryKey,
+            name: "Apple Intelligence",
+            family: "Apple · On-device",
+            description: "Apple's built-in on-device model. Nothing to download — it ships with macOS and runs entirely on your Mac. Requires Apple Intelligence to be turned on in System Settings.",
+            size: "Built-in",
+            context: "4k",
+            speed: "Fast",
+            quality: 0.83,
+            location: .local,
+            highlight: "Built-in · no download"
+        ),
+        LLMModel(
             id: "gemma4-e2b",
             registryKey: "gemma4_e2b_it_4bit",
             name: "Gemma 4 E2B",
@@ -159,6 +172,7 @@ struct BrainView: View {
                     .tracking(-1.0)
                     .lineSpacing(2)
                     .foregroundStyle(DS.Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 18)
 
                 Text("Once your voice is text, a language model does the rest — translating, polishing, expanding snippets. Voicy can use a model on your Mac, or, when you opt in, a faster one in the cloud.")
@@ -183,6 +197,7 @@ struct BrainView: View {
             activeCardTitle(for: current)
                 .font(DS.Font.serif(32))
                 .foregroundStyle(DS.Palette.paper)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 6)
 
             Text("\(current.size) · loaded into RAM")
